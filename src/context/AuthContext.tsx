@@ -31,8 +31,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const login = async (email: string, _password: string): Promise<boolean> => {
-    // Mock: any password works for demo
-    const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const cleanEmail = email.trim().toLowerCase();
+    // Allow demo admin login with either .com or .np
+    let found = mockUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    if (!found && (cleanEmail === 'admin@ezrapharmacy.np' || cleanEmail === 'admin@ezrapharmacy.com')) {
+      found = mockUsers.find(u => u.role === 'admin');
+    }
     if (found) {
       setUser(found);
       localStorage.setItem('ezra_user', JSON.stringify(found));

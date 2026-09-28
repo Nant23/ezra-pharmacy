@@ -32,7 +32,6 @@ import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminPrescriptions from './pages/admin/AdminPrescriptions';
 
 // Admin pages use their own layout (with AdminSidebar), so no Footer
-const ADMIN_PATHS = ['/admin'];
 const NO_FOOTER_PATHS = ['/login', '/register', '/forgot-password'];
 
 function ScrollToTop() {

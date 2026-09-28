@@ -2,6 +2,42 @@ import type { Article } from '../types';
 
 export const articles: Article[] = [
   {
+    id: 'art-007',
+    title: '5 Simple Ways to Keep Your Blood Pressure in Check at Home',
+    excerpt: 'A comprehensive guide to managing hypertension naturally and tracking your heart health from the comfort of home.',
+    content: `With millions of adults living with high blood pressure, it can be overwhelming to know which daily habits and tools truly make a difference for your heart.
+
+**Regular Home Monitoring**
+
+Checking your blood pressure with a validated upper-arm monitor gives an accurate picture of your daily levels away from clinic stress. Sit quietly for 5 minutes before testing at the same times each day.
+
+**Sodium & Diet Control**
+
+Slashing excess salt prevents fluid retention and reduces pressure on artery walls. Reading nutrition labels and replacing table salt with herbs or spices helps keep daily sodium under 2,300 mg.
+
+**Daily Physical Activity**
+
+Getting 150 minutes of moderate exercise per week—like brisk walking or cycling—strengthens your heart so it pumps blood with less effort. Even 10-minute daily walks yield major benefits.
+
+**Stress & Sleep Management**
+
+Chronic stress and poor sleep release hormones that keep blood pressure elevated. Practicing deep breathing for 5 minutes and getting 7–9 hours of restful sleep helps keep readings stable.
+
+**Medication Consistency**
+
+Taking prescriptions at the same time daily ensures steady protection. Always consult your pharmacist before taking over-the-counter drugs like decongestants or NSAIDs, which can raise blood pressure.
+
+**When Lifestyle Isn't Enough**
+
+While daily habits are the foundation of heart health, home monitors, pill organizers, and professional consultations can ensure your routine stays effective and safe. Speak with your pharmacist to check your home cuff or manage your prescriptions.`,
+    image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=600&h=400&fit=crop',
+    category: 'Heart Health',
+    author: 'Dr. Aayush Sharma',
+    date: '2026-09-28',
+    readTime: '5 min read',
+    tags: ['blood pressure', 'hypertension', 'heart health', 'home care', 'wellness']
+  },
+  {
     id: 'art-001',
     title: 'Effective Ways to Manage the Common Cold at Home',
     excerpt: 'Discover proven home remedies and over-the-counter treatments to help you recover faster from the common cold.',

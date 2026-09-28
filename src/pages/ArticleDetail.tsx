@@ -1,11 +1,39 @@
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Clock, User, ChevronRight } from 'lucide-react';
-import { articles } from '../data/articles';
+import { getArticleById, getArticles } from '../services/api';
+import type { Article } from '../types';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
-  const article = articles.find(a => a.id === id);
-  const related = articles.filter(a => a.id !== id && a.category === article?.category).slice(0, 3);
+  const [article, setArticle] = useState<Article | null>(null);
+  const [related, setRelated] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    getArticleById(id).then(art => {
+      setArticle(art);
+      if (art) {
+        getArticles().then(allArts => {
+          setRelated(allArts.filter(a => a.id !== id && a.category === art.category).slice(0, 3));
+        });
+      }
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="container section" style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
+          <LoadingSpinner />
+        </div>
+      </div>
+    );
+  }
 
   if (!article) {
     return (
@@ -21,9 +49,10 @@ export default function ArticleDetail() {
 
   // Convert markdown-like content to basic HTML
   const renderContent = (content: string) => {
-    return content.split('\n\n').map((para, i) => {
+    return content.replace(/\r\n/g, '\n').split('\n\n').map((rawPara, i) => {
+      const para = rawPara.trim();
       if (para.startsWith('**') && para.endsWith('**')) {
-        return <h3 key={i} style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--gray-900)', margin: '24px 0 12px' }}>{para.replace(/\*\*/g, '')}</h3>;
+        return <h3 key={i} style={{ fontWeight: 700, fontSize: '1.15rem', color: 'var(--gray-900)', margin: '28px 0 10px' }}>{para.replace(/\*\*/g, '')}</h3>;
       }
       // Handle inline bold
       const parts = para.split(/(\*\*[^*]+\*\*)/g);

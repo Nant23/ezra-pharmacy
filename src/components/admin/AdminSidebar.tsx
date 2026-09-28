@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingBag, Users, ClipboardList,
-  Archive, Tag, FileText, LogOut, ChevronRight
+  LogOut, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -9,13 +9,10 @@ import { useToast } from '../../context/ToastContext';
 
 const menuItems = [
   { to: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={17} />, exact: true },
-  { to: '/admin/medicines', label: 'Medicines', icon: <Package size={17} /> },
+  { to: '/admin/medicines', label: 'Medicines & Inventory', icon: <Package size={17} /> },
   { to: '/admin/orders', label: 'Orders', icon: <ShoppingBag size={17} /> },
   { to: '/admin/customers', label: 'Customers', icon: <Users size={17} /> },
   { to: '/admin/prescriptions', label: 'Prescriptions', icon: <ClipboardList size={17} /> },
-  { to: '/admin/inventory', label: 'Inventory', icon: <Archive size={17} /> },
-  { to: '/admin/discounts', label: 'Discounts', icon: <Tag size={17} /> },
-  { to: '/admin/articles', label: 'Health Articles', icon: <FileText size={17} /> },
 ];
 
 export default function AdminSidebar() {

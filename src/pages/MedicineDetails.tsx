@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Star, Minus, Plus, ArrowLeft, AlertTriangle, CheckCircle, Heart, Share2 } from 'lucide-react';
-import { medicines } from '../data/medicines';
+import { getMedicineById, getMedicines } from '../services/api';
+import type { Medicine } from '../types';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import MedicineCard from '../components/medicine/MedicineCard';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 export default function MedicineDetails() {
   const { id } = useParams<{ id: string }>();
@@ -14,9 +16,33 @@ export default function MedicineDetails() {
   const [qty, setQty] = useState(1);
   const [wishlisted, setWishlisted] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'uses' | 'dosage'>('description');
+  const [medicine, setMedicine] = useState<Medicine | null>(null);
+  const [related, setRelated] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const medicine = medicines.find(m => m.id === id);
-  const related = medicines.filter(m => m.category === medicine?.category && m.id !== id).slice(0, 4);
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    getMedicineById(id).then(med => {
+      setMedicine(med);
+      if (med) {
+        getMedicines().then(allMeds => {
+          setRelated(allMeds.filter(m => m.category === med.category && m.id !== id).slice(0, 4));
+        });
+      }
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="page-wrapper">
+        <div className="container section" style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
+          <LoadingSpinner />
+        </div>
+      </div>
+    );
+  }
 
   if (!medicine) {
     return (

@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { createOrder } from '../services/api';
 
 type PaymentMethod = 'cod' | 'esewa' | 'khalti' | 'online';
 
@@ -17,16 +19,36 @@ interface FormData {
 }
 
 export default function Checkout() {
-  const { items, subtotal, deliveryFee, total, clearCart } = useCart();
+  const { items, subtotal, deliveryFee, clearCart } = useCart();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [ordered, setOrdered] = useState(false);
-  const [orderId] = useState(`ORD-${Date.now().toString().slice(-6)}`);
+  const [orderId, setOrderId] = useState(`ORD-${Date.now().toString().slice(-6)}`);
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [form, setForm] = useState<FormData>({
-    name: '', phone: '', email: '', address: '', city: 'Kathmandu', paymentMethod: 'cod', notes: ''
+    name: user?.name || '',
+    phone: user?.phone || '',
+    email: user?.email || '',
+    address: user?.addresses?.[0]?.street || '',
+    city: user?.addresses?.[0]?.city || 'Kathmandu',
+    paymentMethod: 'cod',
+    notes: ''
   });
+
+  useEffect(() => {
+    if (user) {
+      setForm(f => ({
+        ...f,
+        name: f.name || user.name || '',
+        phone: f.phone || user.phone || '',
+        email: f.email || user.email || '',
+        address: f.address || user.addresses?.[0]?.street || '',
+        city: f.city || user.addresses?.[0]?.city || 'Kathmandu'
+      }));
+    }
+  }, [user]);
 
   const effectiveDeliveryFee = subtotal >= 500 ? 0 : deliveryFee;
   const effectiveTotal = subtotal + effectiveDeliveryFee;
@@ -34,7 +56,7 @@ export default function Checkout() {
   const validate = () => {
     const e: Partial<FormData> = {};
     if (!form.name.trim()) e.name = 'Full name is required';
-    if (!form.phone.match(/^98\d{8}$|^97\d{8}$|^01\d{7}$/)) e.phone = 'Enter a valid Nepal phone number';
+    if (!form.phone.match(/^98\d{8}$|^97\d{8}$|^01\d{7}$/)) e.phone = 'Enter a valid Nepal phone number (e.g. 9841XXXXXX)';
     if (form.email && !form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = 'Invalid email address';
     if (!form.address.trim()) e.address = 'Delivery address is required';
     setErrors(e);
@@ -45,11 +67,41 @@ export default function Checkout() {
     e.preventDefault();
     if (!validate()) { showToast('Please fix the errors in the form.', 'error'); return; }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
+
+    const orderData = {
+      userId: user?.id,
+      items,
+      status: 'pending' as const,
+      total: effectiveTotal,
+      deliveryFee: effectiveDeliveryFee,
+      paymentMethod: form.paymentMethod,
+      paymentStatus: 'pending' as const,
+      address: {
+        id: `addr-${Date.now()}`,
+        label: form.name || 'Home',
+        street: form.address,
+        city: form.city,
+        district: 'Kathmandu',
+        isDefault: true,
+        name: form.name,
+        phone: form.phone,
+        email: form.email
+      } as any,
+      notes: form.notes
+    };
+
+    const res = await createOrder(orderData);
     setLoading(false);
+
+    if (!res.success) {
+      showToast(res.error || 'Failed to place order. Please try again.', 'error');
+      return;
+    }
+
+    setOrderId(res.orderId);
     setOrdered(true);
     clearCart();
-    showToast('Order placed successfully!', 'success');
+    showToast('Order placed successfully and recorded in database!', 'success');
   };
 
   const set = (key: keyof FormData, value: string) => {

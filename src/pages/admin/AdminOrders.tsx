@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
-import { mockOrders, mockUsers } from '../../data/users';
+import { getAllOrders, updateOrderStatus } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import type { Order } from '../../types';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const statusOptions = ['all', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
 type StatusFilter = typeof statusOptions[number];
@@ -12,7 +13,15 @@ export default function AdminOrders() {
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAllOrders().then(data => {
+      setOrders(data);
+      setLoading(false);
+    });
+  }, []);
 
   const filtered = orders.filter(o => {
     const matchStatus = statusFilter === 'all' || o.status === statusFilter;
@@ -20,9 +29,14 @@ export default function AdminOrders() {
     return matchStatus && matchSearch;
   });
 
-  const updateStatus = (orderId: string, newStatus: Order['status']) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    showToast(`Order ${orderId} status updated to "${newStatus}".`, 'success');
+  const handleUpdateStatus = async (orderId: string, newStatus: Order['status']) => {
+    const ok = await updateOrderStatus(orderId, newStatus);
+    if (ok) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      showToast(`Order ${orderId} status updated to "${newStatus}" in database.`, 'success');
+    } else {
+      showToast(`Failed to update order status for ${orderId}.`, 'error');
+    }
   };
 
   return (
@@ -30,8 +44,10 @@ export default function AdminOrders() {
       <AdminSidebar />
       <main className="admin-content">
         <div style={{ marginBottom: '28px' }}>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-900)' }}>Orders</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px' }}>{orders.length} total orders</p>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-900)' }}>Orders Management</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px' }}>
+            {loading ? 'Fetching orders from Supabase...' : `${orders.length} total orders`}
+          </p>
         </div>
 
         {/* Filters */}
@@ -55,32 +71,40 @@ export default function AdminOrders() {
 
         {/* Table */}
         <div style={{ background: 'white', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Payment</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(order => {
-                  const customer = mockUsers.find(u => u.id === order.userId);
-                  return (
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Delivery Area</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Payment</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Change Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(order => (
                     <tr key={order.id}>
                       <td style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--primary)' }}>{order.id}</td>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{customer?.name || 'Customer'}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{customer?.phone}</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                          {(order.address as { name?: string; label?: string })?.name || (order.address as { name?: string; label?: string })?.label || 'Customer'}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {order.address?.street ? `${order.address.street}, ` : ''}{order.address?.city || 'Kathmandu'}
+                          {(order.address as { phone?: string })?.phone ? ` • ${(order.address as { phone?: string }).phone}` : ''}
+                        </div>
                       </td>
-                      <td style={{ fontWeight: 600 }}>{order.items.reduce((s, i) => s + i.quantity, 0)} items</td>
-                      <td style={{ fontWeight: 700, color: 'var(--primary)' }}>Rs. {order.total + order.deliveryFee}</td>
+                      <td style={{ fontWeight: 600 }}>{order.items?.reduce((s, i) => s + (i.quantity || 1), 0) || 0} items</td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary)' }}>Rs. {order.total}</td>
                       <td>
                         <div>
                           <span className="badge badge-gray" style={{ textTransform: 'uppercase', fontSize: '0.7rem' }}>{order.paymentMethod}</span>
@@ -90,7 +114,7 @@ export default function AdminOrders() {
                         </div>
                       </td>
                       <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                        {new Date(order.createdAt).toLocaleDateString('en-NP', { month: 'short', day: 'numeric' })}
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-NP', { month: 'short', day: 'numeric' }) : 'Recent'}
                       </td>
                       <td><span className={`order-status status-${order.status}`}>{order.status}</span></td>
                       <td>
@@ -98,7 +122,7 @@ export default function AdminOrders() {
                           className="form-input"
                           style={{ fontSize: '0.8rem', padding: '4px 8px', width: '130px' }}
                           value={order.status}
-                          onChange={e => updateStatus(order.id, e.target.value as Order['status'])}
+                          onChange={e => handleUpdateStatus(order.id, e.target.value as Order['status'])}
                         >
                           <option value="pending">Pending</option>
                           <option value="confirmed">Confirmed</option>
@@ -109,12 +133,12 @@ export default function AdminOrders() {
                         </select>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {filtered.length === 0 && (
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {!loading && filtered.length === 0 && (
             <div className="empty-state" style={{ padding: '40px' }}>
               <div className="empty-icon">📦</div>
               <div className="empty-title">No orders found</div>

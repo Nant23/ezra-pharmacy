@@ -55,7 +55,7 @@ export interface Address {
 
 export interface Order {
   id: string;
-  userId: string;
+  userId?: string;
   items: CartItem[];
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   total: number;
@@ -83,10 +83,10 @@ export interface Article {
 
 export interface Prescription {
   id: string;
-  userId: string;
+  userId?: string;
   userName: string;
-  image: string;
   notes: string;
+  image: string;
   status: 'pending' | 'verified' | 'rejected';
   createdAt: string;
   medicines?: string[];

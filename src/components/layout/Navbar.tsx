@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart, Menu, X, Search, User, Heart,
+  ShoppingCart, Menu, X, User, Heart,
   Phone, ChevronDown, LogOut, LayoutDashboard, Shield
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';

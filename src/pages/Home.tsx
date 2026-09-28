@@ -1,8 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Truck, Shield, Clock, HeartPulse, Star, ChevronRight, Phone } from 'lucide-react';
-import { medicines } from '../data/medicines';
-import { categories } from '../data/categories';
-import { articles } from '../data/articles';
+import { getMedicines, getCategories, getArticles } from '../services/api';
+import type { Medicine, Category, Article } from '../types';
 import MedicineCard from '../components/medicine/MedicineCard';
 import CategoryCard from '../components/medicine/CategoryCard';
 
@@ -35,8 +35,18 @@ const services = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const featured = medicines.filter(m => !m.requiresPrescription).slice(0, 8);
-  const popularCategories = categories.slice(0, 10);
+  const [medsList, setMedsList] = useState<Medicine[]>([]);
+  const [catsList, setCatsList] = useState<Category[]>([]);
+  const [artsList, setArtsList] = useState<Article[]>([]);
+
+  useEffect(() => {
+    getMedicines().then(setMedsList);
+    getCategories().then(setCatsList);
+    getArticles().then(setArtsList);
+  }, []);
+
+  const featured = medsList.filter(m => !m.requiresPrescription).slice(0, 8);
+  const popularCategories = catsList.slice(0, 10);
 
   return (
     <div>
@@ -273,7 +283,7 @@ export default function Home() {
             <h2 className="heading-lg">Health Articles & Tips</h2>
           </div>
           <div className="grid-3">
-            {articles.slice(0, 3).map(article => (
+            {artsList.slice(0, 3).map(article => (
               <Link key={article.id} to={`/articles/${article.id}`} style={{ textDecoration: 'none' }}>
                 <div className="article-card">
                   <div style={{ height: 200, overflow: 'hidden' }}>

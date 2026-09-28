@@ -30,9 +30,13 @@ export default function Login() {
     setLoading(false);
     if (ok) {
       showToast('Welcome back to Ezra Pharmacy!', 'success');
-      navigate('/dashboard');
+      if (email.toLowerCase().includes('admin')) {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
-      showToast('No account found with that email. Try admin@ezrapharmacy.com or aarav@example.com.', 'error');
+      showToast('Invalid email or password. Please try again.', 'error');
     }
   };
 
@@ -46,13 +50,6 @@ export default function Login() {
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-900)', marginBottom: '8px' }}>Welcome Back</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Sign in to your account to continue</p>
-        </div>
-
-        {/* Demo Credentials */}
-        <div style={{ background: 'var(--blue-50)', border: '1px solid var(--blue-100)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: '24px', fontSize: '0.82rem', color: 'var(--blue-600)' }}>
-          <strong>Demo credentials:</strong><br />
-          User: aarav@example.com / any password<br />
-          Admin: admin@ezrapharmacy.com / any password
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>

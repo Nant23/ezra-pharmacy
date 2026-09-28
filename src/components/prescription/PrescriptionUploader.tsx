@@ -1,14 +1,28 @@
-import { useState, useRef } from 'react';
-import { Upload, FileText, X, CheckCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Upload, FileText, X, CheckCircle, Loader2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import { uploadPrescription } from '../../services/api';
 
 export default function PrescriptionUploader() {
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const [file, setFile] = useState<File | null>(null);
+  const [userName, setUserName] = useState(user?.name || '');
+  const [userPhone, setUserPhone] = useState(user?.phone || '');
   const [notes, setNotes] = useState('');
   const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [prescriptionId, setPrescriptionId] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (user) {
+      if (!userName) setUserName(user.name);
+      if (!userPhone) setUserPhone(user.phone);
+    }
+  }, [user]);
 
   const handleFile = (f: File) => {
     if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(f.type)) {
@@ -29,11 +43,38 @@ export default function PrescriptionUploader() {
     if (f) handleFile(f);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) { showToast('Please upload a prescription file.', 'error'); return; }
+    if (!file) {
+      showToast('Please select or drop a prescription file to upload.', 'error');
+      return;
+    }
+
+    const finalName = (user?.name || userName).trim();
+    const finalPhone = (user?.phone || userPhone).trim();
+
+    if (!finalName) {
+      showToast('Please enter your full name.', 'error');
+      return;
+    }
+
+    if (!finalPhone.match(/^98\d{8}$|^97\d{8}$|^01\d{7}$/)) {
+      showToast('Please enter a valid Nepal phone number (e.g. 9841XXXXXX).', 'error');
+      return;
+    }
+
+    setUploading(true);
+    const res = await uploadPrescription(file, user?.id, finalName, finalPhone, notes);
+    setUploading(false);
+
+    if (!res.success) {
+      showToast(res.error || 'Failed to upload prescription. Please try again.', 'error');
+      return;
+    }
+
+    setPrescriptionId(res.prescriptionId || '');
     setSubmitted(true);
-    showToast('Prescription submitted! Our pharmacist will review it shortly.', 'success');
+    showToast('Prescription uploaded successfully to Supabase!', 'success');
   };
 
   if (submitted) {
@@ -42,12 +83,27 @@ export default function PrescriptionUploader() {
         <div style={{ width: 80, height: 80, background: 'var(--green-100)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: 'var(--primary)' }}>
           <CheckCircle size={40} />
         </div>
-        <h3 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: 8 }}>Prescription Submitted!</h3>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
-          Thank you! Our licensed pharmacist will review your prescription within 2-4 hours and contact you to confirm your order.
+        <h3 style={{ fontWeight: 700, fontSize: '1.4rem', marginBottom: 8, color: 'var(--gray-900)' }}>
+          Prescription Submitted!
+        </h3>
+        {prescriptionId && (
+          <p style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '1rem', marginBottom: 12 }}>
+            Tracking ID: {prescriptionId}
+          </p>
+        )}
+        <p style={{ color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 440, margin: '0 auto 24px', lineHeight: 1.6 }}>
+          Thank you! Our licensed pharmacist will review your prescription within <strong>2-4 hours</strong> and contact you at <strong>{user?.phone || userPhone}</strong> to confirm your medication and delivery.
         </p>
-        <button className="btn btn-primary btn-lg" onClick={() => { setSubmitted(false); setFile(null); setNotes(''); }}>
-          Submit Another
+        <button
+          className="btn btn-primary btn-lg"
+          onClick={() => {
+            setSubmitted(false);
+            setFile(null);
+            setNotes('');
+            setPrescriptionId('');
+          }}
+        >
+          Submit Another Prescription
         </button>
       </div>
     );
@@ -61,10 +117,44 @@ export default function PrescriptionUploader() {
         <div>
           <div style={{ fontWeight: 700, color: 'var(--gray-900)', marginBottom: 4 }}>Prescription medicines require pharmacist verification</div>
           <div style={{ fontSize: '0.875rem', color: 'var(--gray-600)' }}>
-            Please upload a clear, readable image or PDF of your prescription. Our pharmacist will review and verify it before processing your order. Do not share expired or altered prescriptions.
+            Please upload a clear, readable image or PDF of your prescription. Our licensed pharmacist will verify it before dispensing your medications.
           </div>
         </div>
       </div>
+
+      {/* Contact Details (if not already logged in) */}
+      {!user && (
+        <div className="grid-2" style={{ marginBottom: '20px' }}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="presc-name">
+              Full Name <span style={{ color: 'var(--red-500)' }}>*</span>
+            </label>
+            <input
+              id="presc-name"
+              type="text"
+              className="form-input"
+              placeholder="e.g. Sita Sharma"
+              value={userName}
+              onChange={e => setUserName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="presc-phone">
+              Phone Number <span style={{ color: 'var(--red-500)' }}>*</span>
+            </label>
+            <input
+              id="presc-phone"
+              type="tel"
+              className="form-input"
+              placeholder="9841XXXXXX"
+              value={userPhone}
+              onChange={e => setUserPhone(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+      )}
 
       {/* Upload Zone */}
       <div
@@ -124,21 +214,34 @@ export default function PrescriptionUploader() {
       {/* Notes */}
       <div className="form-group" style={{ marginTop: '20px' }}>
         <label className="form-label" htmlFor="prescription-notes">
-          Additional Notes (Optional)
+          Additional Notes for Pharmacist (Optional)
         </label>
         <textarea
           id="prescription-notes"
           className="form-input"
           rows={3}
-          placeholder="Add any notes for the pharmacist, e.g., specific medicine requests, dosage queries..."
+          placeholder="E.g., require a specific brand, request generic alternative, dosage instructions..."
           value={notes}
           onChange={e => setNotes(e.target.value)}
           style={{ resize: 'vertical', minHeight: '80px' }}
         />
       </div>
 
-      <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: '20px' }}>
-        <Upload size={18} /> Submit Prescription
+      <button
+        type="submit"
+        className="btn btn-primary btn-lg"
+        style={{ width: '100%', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        disabled={uploading}
+      >
+        {uploading ? (
+          <>
+            <Loader2 size={18} className="spin" /> Uploading to Supabase...
+          </>
+        ) : (
+          <>
+            <Upload size={18} /> Submit Prescription
+          </>
+        )}
       </button>
     </form>
   );

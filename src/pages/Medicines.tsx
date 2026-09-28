@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, X } from 'lucide-react';
-import { medicines } from '../data/medicines';
-import type { FilterState } from '../types';
+import { getMedicines } from '../services/api';
+import type { FilterState, Medicine } from '../types';
 import MedicineCard from '../components/medicine/MedicineCard';
 import SearchBar from '../components/medicine/SearchBar';
 import ProductFilter from '../components/medicine/ProductFilter';
 import Pagination from '../components/ui/Pagination';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const defaultFilters: FilterState = {
   category: '', minPrice: 0, maxPrice: 2000,
@@ -16,14 +17,23 @@ const defaultFilters: FilterState = {
 const PER_PAGE = 9;
 
 export default function Medicines() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<FilterState>({
+  const [medsList, setMedsList] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>(() => ({
     ...defaultFilters,
     category: searchParams.get('category') || ''
-  });
+  }));
   const [page, setPage] = useState(1);
   const [showFilterMobile, setShowFilterMobile] = useState(false);
+
+  useEffect(() => {
+    getMedicines().then(data => {
+      setMedsList(data);
+      setLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     const cat = searchParams.get('category') || '';
@@ -31,7 +41,7 @@ export default function Medicines() {
   }, [searchParams]);
 
   const filtered = useMemo(() => {
-    let list = [...medicines];
+    let list = [...medsList];
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(m =>
@@ -54,34 +64,32 @@ export default function Medicines() {
       case 'discount': list.sort((a, b) => (b.discount || 0) - (a.discount || 0)); break;
     }
     return list;
-  }, [search, filters]);
+  }, [medsList, search, filters]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PER_PAGE;
+    return filtered.slice(start, start + PER_PAGE);
+  }, [filtered, page]);
 
-  const handleFilterChange = (f: FilterState) => {
-    setFilters(f);
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters);
     setPage(1);
-    if (f.category) {
-      setSearchParams({ category: f.category });
-    } else {
-      setSearchParams({});
-    }
   };
 
   return (
     <div className="page-wrapper">
-      {/* Page Header */}
-      <div style={{ background: 'linear-gradient(135deg, var(--green-50), white)', borderBottom: '1px solid var(--border)', padding: '40px 0 32px' }}>
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg, var(--green-50), white)', borderBottom: '1px solid var(--border)', padding: '40px 0' }}>
         <div className="container">
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
             <div>
-              <div className="section-label" style={{ marginBottom: '8px' }}>Our Catalog</div>
+              <div className="section-label" style={{ marginBottom: '8px' }}>Online Pharmacy</div>
               <h1 className="heading-lg">
                 {filters.category || 'All Medicines'}
               </h1>
               <p style={{ color: 'var(--text-secondary)', marginTop: '6px' }}>
-                {filtered.length} product{filtered.length !== 1 ? 's' : ''} found
+                {loading ? 'Loading catalog from Supabase...' : `${filtered.length} product${filtered.length !== 1 ? 's' : ''} found`}
               </p>
             </div>
             {filters.category && (
@@ -103,7 +111,7 @@ export default function Medicines() {
           <button
             className="btn btn-ghost"
             onClick={() => setShowFilterMobile(!showFilterMobile)}
-            style={{ display: 'none' }} // shown via CSS at mobile
+            style={{ display: 'none' }}
             id="filter-toggle-btn"
           >
             <SlidersHorizontal size={16} /> Filters
@@ -118,7 +126,11 @@ export default function Medicines() {
 
           {/* Grid */}
           <div>
-            {paginated.length === 0 ? (
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+                <LoadingSpinner />
+              </div>
+            ) : paginated.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">🔍</div>
                 <div className="empty-title">No medicines found</div>
