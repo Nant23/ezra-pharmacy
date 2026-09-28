@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock, Globe, Share2, MessageCircleHeart, Link2 } from 'lucide-react';
+import ezraLogo from '../../assets/ezra-logo.png';
 
 export default function Footer() {
   return (
@@ -9,10 +10,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="footer-brand-logo">
-              <div className="logo-icon">
-                <span style={{ fontSize: '1rem' }}>⚕</span>
-              </div>
-              Ezra Pharmacy
+              <img src={ezraLogo} alt="Ezra Pharmacy" style={{ height: 48, width: 'auto', objectFit: 'contain' }} />
             </div>
             <p className="footer-desc">
               Your trusted healthcare partner in Nepal. We provide quality medicines, 
@@ -58,19 +56,19 @@ export default function Footer() {
             <h4 className="footer-heading">Contact</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
-                <MapPin size={15} style={{ flexShrink: 0, marginTop: 2, color: 'var(--green-400)' }} />
+                <MapPin size={15} style={{ flexShrink: 0, marginTop: 2, color: 'var(--blue-500)' }} />
                 Lazimpat, Kathmandu<br />Nepal, 44600
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
-                <Phone size={15} style={{ color: 'var(--green-400)' }} />
+                <Phone size={15} style={{ color: 'var(--blue-500)' }} />
                 <a href="tel:+97714567890" className="footer-link">01-4567890</a>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
-                <Mail size={15} style={{ color: 'var(--green-400)' }} />
+                <Mail size={15} style={{ color: 'var(--blue-500)' }} />
                 <a href="mailto:info@ezrapharmacy.com" className="footer-link">info@ezrapharmacy.com</a>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
-                <Clock size={15} style={{ flexShrink: 0, marginTop: 2, color: 'var(--green-400)' }} />
+                <Clock size={15} style={{ flexShrink: 0, marginTop: 2, color: 'var(--blue-500)' }} />
                 <span>Sun–Fri: 7:00 AM – 9:00 PM<br />Sat: 8:00 AM – 6:00 PM</span>
               </div>
             </div>

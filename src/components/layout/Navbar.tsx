@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import ezraLogo from '../../assets/ezra-logo.png';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -47,10 +48,7 @@ export default function Navbar() {
         <div className="container navbar-inner">
           {/* Logo */}
           <Link to="/" className="navbar-logo">
-            <div className="logo-icon">
-              <span style={{ fontSize: '1.1rem' }}>⚕</span>
-            </div>
-            <span>Ezra <span style={{ color: 'var(--gray-700)' }}>Pharmacy</span></span>
+            <img src={ezraLogo} alt="Ezra Pharmacy" className="logo-img" />
           </Link>
 
           {/* Desktop Nav */}
@@ -85,7 +83,7 @@ export default function Navbar() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '0.4rem 0.8rem',
-                    background: 'var(--green-50)', border: '1.5px solid var(--green-200)',
+                    background: 'var(--blue-50)', border: '1.5px solid var(--blue-200)',
                     borderRadius: 'var(--radius-lg)', cursor: 'pointer',
                     fontSize: '0.875rem', fontWeight: 600, color: 'var(--primary)',
                     transition: 'var(--transition)'
@@ -102,13 +100,13 @@ export default function Navbar() {
                     borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xl)',
                     minWidth: 200, zIndex: 100, overflow: 'hidden'
                   }}>
-                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--green-50)' }}>
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--blue-50)' }}>
                       <div style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.9rem' }}>{user?.name}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user?.email}</div>
                     </div>
                     {isAdmin && (
                       <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 600, borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--green-50)')}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--blue-50)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                         <Shield size={15} /> Admin Panel
                       </Link>
