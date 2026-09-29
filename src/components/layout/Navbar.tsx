@@ -31,6 +31,7 @@ export default function Navbar() {
   const navLinks = [
     { to: '/', label: 'Home' },
     { to: '/medicines', label: 'Medicines' },
+    { to: '/prescription', label: 'Upload Rx' },
     { to: '/categories', label: 'Categories' },
     { to: '/articles', label: 'Health Tips' },
     { to: '/about', label: 'About Us' },

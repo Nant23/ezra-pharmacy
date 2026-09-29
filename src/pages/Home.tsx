@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, Clock, HeartPulse, Star, ChevronRight, Phone } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Clock, HeartPulse, Star, ChevronRight, Phone, FileText } from 'lucide-react';
 import { getMedicines, getCategories, getArticles } from '../services/api';
 import type { Medicine, Category, Article } from '../types';
 import MedicineCard from '../components/medicine/MedicineCard';
 import CategoryCard from '../components/medicine/CategoryCard';
+import PrescriptionUploader from '../components/prescription/PrescriptionUploader';
 
 const testimonials = [
   { name: 'Sita Sharma', location: 'Kathmandu', rating: 5, text: 'Ezra Pharmacy has been my go-to for all medicines. The delivery is fast and the pharmacists are always helpful with my queries.' },
@@ -69,11 +70,14 @@ export default function Home() {
                 Fast delivery across Nepal with expert pharmacist guidance. 
                 Your health is our priority.
               </p>
-              <div className="hero-actions">
+              <div className="hero-actions" style={{ flexWrap: 'wrap', gap: '12px' }}>
                 <Link to="/medicines" className="btn btn-primary btn-lg">
                   Shop Medicines <ArrowRight size={18} />
                 </Link>
-                <Link to="/contact" className="btn btn-secondary btn-lg">
+                <Link to="/prescription" className="btn btn-secondary btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={18} color="var(--primary)" /> Upload Rx
+                </Link>
+                <Link to="/contact" className="btn btn-ghost btn-lg" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                   Contact Us <Phone size={16} />
                 </Link>
               </div>
@@ -182,6 +186,43 @@ export default function Home() {
             <Link to="/medicines" className="btn btn-primary btn-lg">
               View All Medicines <ArrowRight size={18} />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ QUICK PRESCRIPTION UPLOAD BOX ============ */}
+      <section className="section" style={{ background: 'linear-gradient(135deg, var(--green-50) 0%, #ffffff 100%)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+        <div className="container">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '48px', alignItems: 'center' }}>
+            <div>
+              <div className="section-label" style={{ marginBottom: '16px' }}>📋 Doctor's Prescription Service</div>
+              <h2 className="heading-lg" style={{ marginBottom: '16px' }}>
+                Have a Doctor's Prescription?<br />Upload It for Express Doorstep Delivery
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '1.02rem', lineHeight: 1.7, marginBottom: '24px' }}>
+                Can't read doctor's handwriting or don't know the exact medicine brand? Just take a photo and upload it here. Our licensed pharmacists will verify the prescription, prepare genuine medicines, and dispatch them directly to your door.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '28px' }}>
+                {[
+                  { title: 'Licensed Pharmacist Verification', desc: 'Every prescription is checked for correct dosage, interactions, and authenticity.' },
+                  { title: '100% Genuine Direct Sourcing', desc: 'All medicines sourced straight from authorized manufacturers and distributors.' },
+                  { title: 'Express Delivery Across Nepal', desc: 'Delivered in 2-4 hours inside Kathmandu Valley, reliable shipping nationwide.' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--green-100)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, fontSize: '0.85rem', fontWeight: 800 }}>✓</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--gray-900)' }}>{item.title}</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <PrescriptionUploader compact={true} />
+            </div>
           </div>
         </div>
       </section>

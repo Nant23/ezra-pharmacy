@@ -25,15 +25,27 @@ export default function Dashboard() {
       return;
     }
 
+    const fetchDashboardData = () => {
+      Promise.all([
+        getUserOrders(user.id),
+        getUserPrescriptions(user.id)
+      ]).then(([ords, prescs]) => {
+        setOrders(ords);
+        setPrescriptions(prescs);
+        setLoading(false);
+      });
+    };
+
     setLoading(true);
-    Promise.all([
-      getUserOrders(user.id),
-      getUserPrescriptions(user.id)
-    ]).then(([ords, prescs]) => {
-      setOrders(ords);
-      setPrescriptions(prescs);
-      setLoading(false);
-    });
+    fetchDashboardData();
+
+    window.addEventListener('ezra_prescriptions_updated', fetchDashboardData);
+    window.addEventListener('storage', fetchDashboardData);
+
+    return () => {
+      window.removeEventListener('ezra_prescriptions_updated', fetchDashboardData);
+      window.removeEventListener('storage', fetchDashboardData);
+    };
   }, [user, navigate]);
 
   if (!user) return null;
@@ -191,19 +203,24 @@ export default function Dashboard() {
                                   <FileText size={24} color="var(--primary)" />
                                 )}
                               </div>
-                              <div>
-                                <div style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.95rem' }}>
-                                  Prescription #{p.id}
-                                </div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                  Submitted on {new Date(p.createdAt).toLocaleDateString()}
-                                </div>
-                                {p.notes && (
-                                  <div style={{ fontSize: '0.8rem', color: 'var(--gray-600)', marginTop: '4px' }}>
-                                    <em>"{p.notes}"</em>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.95rem' }}>
+                                    Prescription #{p.id}
                                   </div>
-                                )}
-                              </div>
+                                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                    Submitted on {new Date(p.createdAt).toLocaleDateString()}
+                                  </div>
+                                  {p.doctorName && (
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--blue-600)', fontWeight: 600, marginTop: '2px' }}>
+                                      🩺 {p.doctorName}
+                                    </div>
+                                  )}
+                                  {p.notes && (
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--gray-600)', marginTop: '4px' }}>
+                                      <em>"{p.notes}"</em>
+                                    </div>
+                                  )}
+                                </div>
                             </div>
                             <div>
                               <span className={`badge ${p.status === 'verified' ? 'badge-green' : p.status === 'rejected' ? 'badge-red' : 'badge-amber'}`} style={{ textTransform: 'capitalize' }}>

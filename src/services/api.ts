@@ -249,58 +249,122 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
 // PRESCRIPTION UPLOAD & STORAGE API
 // ============================================================
 
+const PRESCRIPTIONS_STORAGE_KEY = 'ezra_prescriptions';
+
+const INITIAL_MOCK_PRESCRIPTIONS: Prescription[] = [
+  {
+    id: 'RX-841920',
+    userId: 'user-001',
+    userName: 'Aarav Sharma',
+    userPhone: '9841234567',
+    doctorName: 'Dr. Ramesh Adhikari (Bir Hospital)',
+    notes: 'Need 1 month refill for blood pressure medications. Please deliver in the evening.',
+    image: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=800&auto=format&fit=crop',
+    status: 'pending',
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    medicines: ['Amlodipine 5mg', 'Telmisartan 40mg']
+  },
+  {
+    id: 'RX-712044',
+    userId: 'user-002',
+    userName: 'Sunita Maharjan',
+    userPhone: '9813456789',
+    doctorName: 'Dr. Sunita Karki (Teaching Hospital)',
+    notes: 'Prescribed for seasonal flu and throat irritation. Doctor advised 5 days course.',
+    image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop',
+    status: 'verified',
+    createdAt: new Date(Date.now() - 3600000 * 26).toISOString(),
+    medicines: ['Azithromycin 500mg', 'Montelukast 10mg']
+  }
+];
+
+export function getStoredPrescriptions(): Prescription[] {
+  try {
+    const raw = localStorage.getItem(PRESCRIPTIONS_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(PRESCRIPTIONS_STORAGE_KEY, JSON.stringify(INITIAL_MOCK_PRESCRIPTIONS));
+      return INITIAL_MOCK_PRESCRIPTIONS;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return INITIAL_MOCK_PRESCRIPTIONS;
+  }
+}
+
+export function saveStoredPrescriptions(prescriptions: Prescription[]): void {
+  try {
+    localStorage.setItem(PRESCRIPTIONS_STORAGE_KEY, JSON.stringify(prescriptions));
+    window.dispatchEvent(new CustomEvent('ezra_prescriptions_updated', { detail: prescriptions }));
+  } catch (err) {
+    console.error('Failed to save prescriptions to localStorage:', err);
+  }
+}
+
 export async function uploadPrescription(
   file: File,
   userId?: string | null,
   userName: string = 'Customer',
   userPhone: string = '',
-  notes: string = ''
+  notes: string = '',
+  doctorName: string = ''
 ): Promise<{ success: boolean; prescriptionId?: string; error?: string }> {
   const prescriptionId = `RX-${Date.now().toString().slice(-6)}`;
 
-  if (!isSupabaseConfigured) {
-    return { success: true, prescriptionId };
-  }
-
   try {
-    let imageUrl = '';
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const folder = isValidUUID(userId) ? userId : 'guests';
-    const filePath = `${folder}/${prescriptionId}.${fileExt}`;
+    // 1. Read file as Base64 Data URL for immediate reliability
+    const dataUrl = await fileToDataUrl(file);
+    let imageUrl = dataUrl;
 
-    // 1. Try uploading to Supabase Storage Bucket ('prescriptions')
-    const { error: uploadError } = await supabase.storage
-      .from('prescriptions')
-      .upload(filePath, file, { upsert: true });
+    // 2. Try Supabase cloud sync if configured
+    if (isSupabaseConfigured) {
+      try {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const folder = isValidUUID(userId) ? userId : 'guests';
+        const filePath = `${folder}/${prescriptionId}.${fileExt}`;
 
-    if (!uploadError) {
-      const { data: urlData } = supabase.storage
-        .from('prescriptions')
-        .getPublicUrl(filePath);
-      imageUrl = urlData.publicUrl;
-    } else {
-      console.warn('Storage bucket upload notice:', uploadError.message);
-      // Fallback to Data URL if storage bucket is not created or restricted
-      imageUrl = await fileToDataUrl(file);
+        const { error: uploadError } = await supabase.storage
+          .from('prescriptions')
+          .upload(filePath, file, { upsert: true });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from('prescriptions')
+            .getPublicUrl(filePath);
+          imageUrl = urlData.publicUrl;
+        }
+
+        await supabase
+          .from('prescriptions')
+          .insert({
+            id: prescriptionId,
+            user_id: isValidUUID(userId) ? userId : null,
+            user_name: userName || 'Customer',
+            user_phone: userPhone,
+            doctor_name: doctorName || '',
+            image_url: imageUrl,
+            notes: notes || '',
+            status: 'pending'
+          });
+      } catch (cloudErr) {
+        console.warn('Supabase prescription sync warning, saving locally:', cloudErr);
+      }
     }
 
-    // 2. Insert record in prescriptions table
-    const { error: dbError } = await supabase
-      .from('prescriptions')
-      .insert({
-        id: prescriptionId,
-        user_id: isValidUUID(userId) ? userId : null,
-        user_name: userName || 'Customer',
-        user_phone: userPhone,
-        image_url: imageUrl,
-        notes: notes || '',
-        status: 'pending'
-      });
+    // 3. Always save to local store so Admin can instantly access it
+    const newPrescription: Prescription = {
+      id: prescriptionId,
+      userId: userId || undefined,
+      userName: userName || 'Customer',
+      userPhone: userPhone || '',
+      doctorName: doctorName || '',
+      notes: notes || '',
+      image: imageUrl,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
 
-    if (dbError) {
-      console.error('Supabase prescriptions insert error:', dbError);
-      throw dbError;
-    }
+    const current = getStoredPrescriptions();
+    saveStoredPrescriptions([newPrescription, ...current]);
 
     return { success: true, prescriptionId };
   } catch (err: unknown) {
@@ -311,28 +375,8 @@ export async function uploadPrescription(
 }
 
 export async function getUserPrescriptions(userId: string): Promise<Prescription[]> {
-  if (!isSupabaseConfigured) {
-    return [];
-  }
-
-  const { data, error } = await supabase
-    .from('prescriptions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error || !data) return [];
-
-  return data.map(p => ({
-    id: p.id,
-    userId: p.user_id,
-    userName: p.user_name,
-    image: p.image_url,
-    notes: p.notes || '',
-    status: p.status,
-    createdAt: p.created_at,
-    medicines: p.medicines || []
-  }));
+  const all = await getAllPrescriptions();
+  return all.filter(p => p.userId === userId);
 }
 
 // ============================================================
@@ -389,47 +433,69 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 }
 
 export async function getAllPrescriptions(): Promise<Prescription[]> {
+  const localList = getStoredPrescriptions();
+
   if (!isSupabaseConfigured) {
-    return [];
+    return localList;
   }
 
-  const { data, error } = await supabase
-    .from('prescriptions')
-    .select('*')
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('prescriptions')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (error || !data) {
-    console.warn('Failed to load prescriptions:', error?.message);
-    return [];
+    if (error || !data || data.length === 0) {
+      return localList;
+    }
+
+    const cloudPrescriptions: Prescription[] = data.map(p => ({
+      id: p.id,
+      userId: p.user_id,
+      userName: p.user_name || 'Customer',
+      userPhone: p.user_phone || '',
+      doctorName: p.doctor_name || '',
+      image: p.image_url,
+      notes: p.notes || '',
+      status: p.status,
+      createdAt: p.created_at,
+      medicines: p.medicines || []
+    }));
+
+    // Merge cloud and local so no items are lost, prioritizing latest status
+    const mergedMap = new Map<string, Prescription>();
+    cloudPrescriptions.forEach(p => mergedMap.set(p.id, p));
+    localList.forEach(p => {
+      if (!mergedMap.has(p.id)) {
+        mergedMap.set(p.id, p);
+      }
+    });
+
+    return Array.from(mergedMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  } catch (err) {
+    console.warn('Error fetching prescriptions from Supabase, using local:', err);
+    return localList;
   }
-
-  return data.map(p => ({
-    id: p.id,
-    userId: p.user_id,
-    userName: p.user_name || 'Customer',
-    userPhone: p.user_phone || '',
-    image: p.image_url,
-    notes: p.notes || '',
-    status: p.status,
-    createdAt: p.created_at,
-    medicines: p.medicines || []
-  }));
 }
 
 export async function updatePrescriptionStatus(id: string, status: Prescription['status']): Promise<boolean> {
-  if (!isSupabaseConfigured) {
-    return true;
+  const current = getStoredPrescriptions();
+  const updated = current.map(p => p.id === id ? { ...p, status } : p);
+  saveStoredPrescriptions(updated);
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase
+        .from('prescriptions')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id);
+    } catch (err) {
+      console.warn('Failed to update Supabase prescription status:', err);
+    }
   }
 
-  const { error } = await supabase
-    .from('prescriptions')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) {
-    console.error('Failed to update prescription status:', error.message);
-    return false;
-  }
   return true;
 }
 

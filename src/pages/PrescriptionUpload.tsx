@@ -59,13 +59,7 @@ export default function PrescriptionUpload() {
 
         {/* Uploader */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '40px', alignItems: 'start' }}>
-          <div style={{ background: 'white', borderRadius: 'var(--radius-2xl)', border: '1px solid var(--border)', padding: '36px' }}>
-            <h2 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '8px' }}>Upload Your Prescription</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '28px' }}>
-              Upload a clear image or PDF of your prescription from a licensed doctor.
-            </p>
-            <PrescriptionUploader />
-          </div>
+          <PrescriptionUploader />
 
           {/* Sidebar info */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

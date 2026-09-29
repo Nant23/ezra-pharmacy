@@ -85,6 +85,8 @@ export interface Prescription {
   id: string;
   userId?: string;
   userName: string;
+  userPhone?: string;
+  doctorName?: string;
   notes: string;
   image: string;
   status: 'pending' | 'verified' | 'rejected';

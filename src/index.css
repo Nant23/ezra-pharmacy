@@ -1925,6 +1925,30 @@ select.form-input { cursor: pointer; }
 /* ============================================================
    ABOUT PAGE
    ============================================================ */
+.about-hero-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  padding: 12px 28px;
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  margin-bottom: var(--space-6);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.about-hero-logo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.25), 0 10px 12px -5px rgba(0, 0, 0, 0.15);
+}
+
+.about-hero-logo img {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
 .team-card {
   background: var(--white);
   border-radius: var(--radius-xl);

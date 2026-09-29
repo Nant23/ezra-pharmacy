@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Award, Target, Eye, Heart, ShieldCheck, Users } from 'lucide-react';
+import ezraLogo from '../assets/ezra-logo.png';
 
 const team = [
   { name: 'Dr. Sunita Karki', role: 'Chief Pharmacist', emoji: '👩‍⚕️', exp: '12 years experience', deg: 'PharmD, TU' },
@@ -28,7 +29,9 @@ export default function About() {
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg, var(--green-600) 0%, var(--green-700) 100%)', color: 'white', padding: '80px 0' }}>
         <div className="container" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '3.5rem', marginBottom: '20px' }}>⚕️</div>
+          <div className="about-hero-logo">
+            <img src={ezraLogo} alt="Ezra Pharmacy" />
+          </div>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 800, marginBottom: '16px' }}>
             About Ezra Pharmacy
           </h1>

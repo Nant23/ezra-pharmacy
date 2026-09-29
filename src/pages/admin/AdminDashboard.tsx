@@ -46,6 +46,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (user && isAdmin) {
       loadDashboardData();
+
+      const handlePrescriptionUpdate = () => {
+        getAllPrescriptions().then(data => setPrescriptions(data));
+      };
+
+      window.addEventListener('ezra_prescriptions_updated', handlePrescriptionUpdate);
+      window.addEventListener('storage', handlePrescriptionUpdate);
+
+      return () => {
+        window.removeEventListener('ezra_prescriptions_updated', handlePrescriptionUpdate);
+        window.removeEventListener('storage', handlePrescriptionUpdate);
+      };
     }
   }, [user, isAdmin]);
 
