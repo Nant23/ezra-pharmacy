@@ -92,8 +92,8 @@ export default function PrescriptionUpload() {
               <p style={{ fontSize: '0.875rem', color: 'var(--green-800)', lineHeight: 1.6, marginBottom: '12px' }}>
                 Having trouble with your prescription? Call our pharmacist directly.
               </p>
-              <a href="tel:+97714567890" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--primary)', fontSize: '0.9rem' }}>
-                <Phone size={15} /> 01-4567890
+              <a href="tel:+9779843116918" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--primary)', fontSize: '0.9rem' }}>
+                <Phone size={15} /> 9843116918
               </a>
             </div>
           </div>

@@ -56,7 +56,10 @@ export default function Checkout() {
   const validate = () => {
     const e: Partial<FormData> = {};
     if (!form.name.trim()) e.name = 'Full name is required';
-    if (!form.phone.match(/^98\d{8}$|^97\d{8}$|^01\d{7}$/)) e.phone = 'Enter a valid Nepal phone number (e.g. 9841XXXXXX)';
+    const cleanedPhone = form.phone.replace(/[\s\-\(\)]/g, '').replace(/^(\+?977)/, '');
+    if (!cleanedPhone || !cleanedPhone.match(/^(98|97)\d{8}$|^01\d{6,8}$|^\d{8,10}$/)) {
+      e.phone = 'Enter a valid Nepal phone number (e.g. 9841XXXXXX)';
+    }
     if (form.email && !form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = 'Invalid email address';
     if (!form.address.trim()) e.address = 'Delivery address is required';
     setErrors(e);
@@ -68,6 +71,7 @@ export default function Checkout() {
     if (!validate()) { showToast('Please fix the errors in the form.', 'error'); return; }
     setLoading(true);
 
+    const cleanedPhone = form.phone.replace(/[\s\-\(\)]/g, '').replace(/^(\+?977)/, '');
     const orderData = {
       userId: user?.id,
       items,
@@ -84,7 +88,7 @@ export default function Checkout() {
         district: 'Kathmandu',
         isDefault: true,
         name: form.name,
-        phone: form.phone,
+        phone: cleanedPhone,
         email: form.email
       } as any,
       notes: form.notes

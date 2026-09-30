@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import ezraLogo from '../assets/ezra-logo.png';
 
 export default function Register() {
   const { register } = useAuth();
@@ -34,8 +35,17 @@ export default function Register() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
+    const result = await register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
     setLoading(false);
+    if (!result.success) {
+      showToast(result.message || 'Could not create your account. Please try again.', 'error');
+      return;
+    }
+    if (result.requiresEmailConfirmation) {
+      showToast('Account created. Check your email to confirm it, then sign in.', 'info');
+      navigate('/login');
+      return;
+    }
     showToast('Account created! Welcome to Ezra Pharmacy.', 'success');
     navigate('/dashboard');
   };
@@ -44,9 +54,8 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-card" style={{ maxWidth: 480 }}>
         <div className="auth-header">
-          <Link to="/" className="auth-logo">
-            <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, var(--green-600), var(--green-500))', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem' }}>⚕</div>
-            Ezra Pharmacy
+          <Link to="/" className="auth-logo" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <img src={ezraLogo} alt="Ezra Pharmacy" style={{ height: 48, width: 'auto', objectFit: 'contain' }} />
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-900)', marginBottom: '8px' }}>Create Account</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Join Ezra Pharmacy for fast medicine delivery</p>

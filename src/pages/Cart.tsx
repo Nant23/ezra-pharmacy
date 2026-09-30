@@ -1,11 +1,16 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2 } from 'lucide-react';
 import CartItemComponent from '../components/cart/CartItem';
 import { useCart } from '../context/CartContext';
 
 export default function Cart() {
-  const { items, clearCart, subtotal, deliveryFee, total } = useCart();
+  const { items, clearCart, subtotal, deliveryFee, total, markCartViewed } = useCart();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    markCartViewed();
+  }, [markCartViewed]);
 
   if (items.length === 0) {
     return (

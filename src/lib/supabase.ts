@@ -7,12 +7,13 @@ export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
   supabaseUrl !== 'https://your-project-ref.supabase.co' &&
+  supabaseAnonKey !== 'your-anon-key-here' &&
   !supabaseUrl.includes('your-project-ref')
 );
 
 if (!isSupabaseConfigured) {
   console.warn(
-    '⚠️ Supabase is not configured yet. Using mock data. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
+    'Supabase is not configured. Authentication is unavailable until VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env.'
   );
 }
 

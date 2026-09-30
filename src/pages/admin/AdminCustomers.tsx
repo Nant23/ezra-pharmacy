@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
-import { mockUsers } from '../../data/users';
+import { getRegisteredAccounts } from '../../context/AuthContext';
 import { getAllOrders } from '../../services/api';
 import type { Order } from '../../types';
 import { Mail, Phone, Search, Loader2 } from 'lucide-react';
@@ -20,19 +20,26 @@ export default function AdminCustomers() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [registeredUsers, setRegisteredUsers] = useState(getRegisteredAccounts());
 
   useEffect(() => {
     getAllOrders().then(data => {
       setOrders(data);
       setLoading(false);
     });
+
+    const handleUsersUpdate = () => {
+      setRegisteredUsers(getRegisteredAccounts());
+    };
+    window.addEventListener('ezra_users_updated', handleUsersUpdate);
+    return () => window.removeEventListener('ezra_users_updated', handleUsersUpdate);
   }, []);
 
-  // Build unified customer list from registered mockUsers + live orders
+  // Build unified customer list from registered accounts + live orders
   const customerMap = new Map<string, CustomerView>();
 
-  // 1. Registered mock users
-  mockUsers.filter(u => u.role === 'user').forEach(u => {
+  // 1. Registered users
+  registeredUsers.filter(u => u.role === 'user').forEach(u => {
     customerMap.set(u.id, {
       id: u.id,
       name: u.name,
@@ -49,9 +56,9 @@ export default function AdminCustomers() {
   orders.forEach(order => {
     const addressAny = order.address as { name?: string; phone?: string; email?: string } | undefined;
     const customerKey = order.userId || addressAny?.phone || order.id;
-    const customerName = addressAny?.name || (order.userId ? mockUsers.find(u => u.id === order.userId)?.name : undefined) || 'Customer';
-    const customerPhone = addressAny?.phone || (order.userId ? mockUsers.find(u => u.id === order.userId)?.phone : undefined) || 'N/A';
-    const customerEmail = addressAny?.email || (order.userId ? mockUsers.find(u => u.id === order.userId)?.email : undefined) || 'guest@ezrapharmacy.np';
+    const customerName = addressAny?.name || (order.userId ? registeredUsers.find(u => u.id === order.userId)?.name : undefined) || 'Customer';
+    const customerPhone = addressAny?.phone || (order.userId ? registeredUsers.find(u => u.id === order.userId)?.phone : undefined) || 'N/A';
+    const customerEmail = addressAny?.email || (order.userId ? registeredUsers.find(u => u.id === order.userId)?.email : undefined) || 'guest@ezrapharmacy.np';
     const orderCost = (order.total || 0) + (order.deliveryFee || 0);
 
     if (customerMap.has(customerKey)) {

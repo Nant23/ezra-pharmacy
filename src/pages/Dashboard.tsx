@@ -4,6 +4,9 @@ import { User, Package, MapPin, Heart, LogOut, ChevronRight, Edit, FileText, Che
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getUserOrders, getUserPrescriptions } from '../services/api';
+import { getUnreadOrderUpdateCount, markOrderUpdatesRead } from '../services/orderNotifications';
+import { useWishlist } from '../context/WishlistContext';
+import MedicineCard from '../components/medicine/MedicineCard';
 import type { Order, Prescription } from '../types';
 import OrderCard from '../components/order/OrderCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -12,10 +15,12 @@ type Tab = 'profile' | 'orders' | 'prescriptions' | 'addresses' | 'wishlist';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const { items: wishlistItems, isLoading: wishlistLoading, removeFromWishlist } = useWishlist();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [unreadOrderUpdates, setUnreadOrderUpdates] = useState(0);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +36,7 @@ export default function Dashboard() {
         getUserPrescriptions(user.id)
       ]).then(([ords, prescs]) => {
         setOrders(ords);
+        setUnreadOrderUpdates(getUnreadOrderUpdateCount(user.id, ords));
         setPrescriptions(prescs);
         setLoading(false);
       });
@@ -38,15 +44,23 @@ export default function Dashboard() {
 
     setLoading(true);
     fetchDashboardData();
+    const intervalId = window.setInterval(fetchDashboardData, 30000);
 
     window.addEventListener('ezra_prescriptions_updated', fetchDashboardData);
     window.addEventListener('storage', fetchDashboardData);
 
     return () => {
+      window.clearInterval(intervalId);
       window.removeEventListener('ezra_prescriptions_updated', fetchDashboardData);
       window.removeEventListener('storage', fetchDashboardData);
     };
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (!user || loading || activeTab !== 'orders') return;
+    markOrderUpdatesRead(user.id, orders);
+    setUnreadOrderUpdates(0);
+  }, [activeTab, loading, orders, user]);
 
   if (!user) return null;
 
@@ -92,9 +106,9 @@ export default function Dashboard() {
               >
                 {tab.icon}
                 <span>{tab.label}</span>
-                {tab.id === 'orders' && orders.length > 0 && (
+                {tab.id === 'orders' && unreadOrderUpdates > 0 && (
                   <span className="badge badge-green" style={{ marginLeft: 'auto', fontSize: '0.72rem' }}>
-                    {orders.length}
+                    {unreadOrderUpdates}
                   </span>
                 )}
                 {tab.id === 'prescriptions' && prescriptions.length > 0 && (
@@ -268,13 +282,32 @@ export default function Dashboard() {
 
                 {/* Wishlist Tab */}
                 {activeTab === 'wishlist' && (
-                  <div className="empty-state">
-                    <div className="empty-icon">❤️</div>
-                    <div className="empty-title">Your wishlist is empty</div>
-                    <div className="empty-desc">Save medicines you love by clicking the heart icon.</div>
-                    <button className="btn btn-primary" onClick={() => navigate('/medicines')}>
-                      Browse Medicines <ChevronRight size={16} />
-                    </button>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                      <h2 style={{ fontWeight: 700, fontSize: '1.1rem' }}>My Wishlist</h2>
+                      <span className="badge badge-red">{wishlistItems.length} saved</span>
+                    </div>
+                    {wishlistLoading ? (
+                      <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><LoadingSpinner /></div>
+                    ) : wishlistItems.length ? (
+                      <div className="grid-4">
+                        {wishlistItems.map(medicine => (
+                          <div key={medicine.id} style={{ position: 'relative' }}>
+                            <MedicineCard medicine={medicine} />
+                            <button className="btn btn-ghost btn-sm" onClick={() => removeFromWishlist(medicine.id)} style={{ marginTop: 8, width: '100%' }}>Remove</button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-state">
+                        <div className="empty-icon">❤️</div>
+                        <div className="empty-title">Your wishlist is empty</div>
+                        <div className="empty-desc">Save medicines you love by clicking the heart icon.</div>
+                        <button className="btn btn-primary" onClick={() => navigate('/medicines')}>
+                          Browse Medicines <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </>

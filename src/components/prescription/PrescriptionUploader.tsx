@@ -23,12 +23,16 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
   const [uploading, setUploading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [prescriptionId, setPrescriptionId] = useState('');
+  const [confirmedPhone, setConfirmedPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [nameError, setNameError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
-      if (!userName) setUserName(user.name);
-      if (!userPhone) setUserPhone(user.phone);
+      if (!userName && user.name) setUserName(user.name);
+      if (!userPhone && user.phone) setUserPhone(user.phone);
     }
   }, [user]);
 
@@ -42,16 +46,19 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
   }, [filePreview]);
 
   const handleFile = (f: File) => {
-    if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(f.type)) {
+    const isPdf = f.type === 'application/pdf' || f.type === 'application/x-pdf' || f.name.toLowerCase().endsWith('.pdf');
+    const isImage = f.type.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(f.name);
+
+    if (!isPdf && !isImage) {
       showToast('Please upload a JPG, PNG, WebP, or PDF file.', 'error');
       return;
     }
-    if (f.size > 10 * 1024 * 1024) {
-      showToast('File size must be less than 10 MB.', 'error');
+    if (f.size > 15 * 1024 * 1024) {
+      showToast('File size must be less than 15 MB.', 'error');
       return;
     }
     setFile(f);
-    if (f.type.startsWith('image/')) {
+    if (isImage) {
       const previewUrl = URL.createObjectURL(f);
       setFilePreview(previewUrl);
     } else {
@@ -82,25 +89,42 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
       return;
     }
 
-    const finalName = (user?.name || userName).trim();
-    const finalPhone = (user?.phone || userPhone).trim();
+    const finalName = (userName || user?.name || '').trim();
+    const rawPhone = (userPhone || user?.phone || '').trim();
+    const cleanedPhone = rawPhone.replace(/[\s\-\(\)]/g, '').replace(/^(\+?977)/, '');
+
+    let hasError = false;
 
     if (!finalName) {
-      showToast('Please enter your full name.', 'error');
-      return;
+      setNameError('Full name is required.');
+      hasError = true;
+    } else {
+      setNameError('');
     }
 
-    if (!finalPhone.match(/^98\d{8}$|^97\d{8}$|^01\d{7}$/)) {
-      showToast('Please enter a valid Nepal phone number (e.g. 9841XXXXXX or 014XXXXXX).', 'error');
-      return;
+    // Phone number is strictly mandatory
+    if (!cleanedPhone) {
+      setPhoneError('Contact phone number is mandatory.');
+      showToast('Phone number is mandatory. Please provide a contact number.', 'error');
+      phoneInputRef.current?.focus();
+      hasError = true;
+    } else if (!/^(98|97)\d{8}$|^01\d{6,8}$|^\d{8,10}$/.test(cleanedPhone)) {
+      setPhoneError('Please enter a valid Nepal phone number (e.g. 98XXXXXXXX or 01XXXXXXX).');
+      showToast('Please enter a valid Nepal phone number (e.g. 9841XXXXXX).', 'error');
+      phoneInputRef.current?.focus();
+      hasError = true;
+    } else {
+      setPhoneError('');
     }
+
+    if (hasError) return;
 
     setUploading(true);
     const res = await uploadPrescription(
       file,
       user?.id,
       finalName,
-      finalPhone,
+      cleanedPhone,
       notes.trim(),
       doctorName.trim()
     );
@@ -113,8 +137,9 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
 
     const newId = res.prescriptionId || '';
     setPrescriptionId(newId);
+    setConfirmedPhone(cleanedPhone);
     setSubmitted(true);
-    showToast('Prescription uploaded successfully! Transmitted to pharmacist for review.', 'success');
+    showToast('Prescription uploaded successfully! It is now visible in the Admin Panel.', 'success');
     if (onSuccess) onSuccess(newId);
   };
 
@@ -170,7 +195,7 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
 
         <p style={{ color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6, fontSize: '0.95rem' }}>
           Our licensed pharmacist is reviewing your doctor's prescription. We will contact you at{' '}
-          <strong style={{ color: 'var(--gray-900)' }}>{user?.phone || userPhone}</strong> to verify the medicines, dosage, and arrange express delivery.
+          <strong style={{ color: 'var(--gray-900)' }}>{confirmedPhone || userPhone || user?.phone}</strong> to verify the medicines, dosage, and arrange express delivery.
         </p>
 
         {doctorName && (
@@ -277,7 +302,7 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,application/pdf"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,application/pdf"
             style={{ display: 'none' }}
             onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
           />
@@ -302,8 +327,20 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
                   />
                 </div>
               ) : (
-                <div style={{ fontSize: '2.8rem', marginBottom: '8px' }}>
-                  {file.type === 'application/pdf' ? '📄' : '🖼️'}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  background: 'var(--blue-50)',
+                  border: '1px solid var(--blue-200)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '16px 24px',
+                  marginBottom: 12
+                }}>
+                  <span style={{ fontSize: '3rem', marginBottom: 4 }}>📄</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--blue-700)' }}>
+                    PDF Prescription Document
+                  </span>
                 </div>
               )}
 
@@ -379,25 +416,42 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="presc-phone">
-                Contact Phone Number <span style={{ color: 'var(--red-500)' }}>*</span>
+              <label className="form-label" htmlFor="presc-phone" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>
+                  Contact Phone Number <strong style={{ color: 'var(--red-600)', fontSize: '0.85rem' }}>* (Mandatory)</strong>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Nepal Mobile / Landline</span>
               </label>
               <input
+                ref={phoneInputRef}
                 id="presc-phone"
                 type="tel"
                 className="form-input"
-                placeholder="98XXXXXXXX / 01XXXXXXX"
+                placeholder="e.g. 9841XXXXXX or 014XXXXXX (Required)"
                 value={userPhone}
-                onChange={e => setUserPhone(e.target.value)}
+                onChange={e => {
+                  setUserPhone(e.target.value);
+                  if (phoneError) setPhoneError('');
+                }}
+                style={phoneError ? { borderColor: 'var(--red-500)', background: 'var(--red-50)' } : {}}
                 required
               />
+              {phoneError ? (
+                <div style={{ color: 'var(--red-600)', fontSize: '0.8rem', marginTop: 4, fontWeight: 600 }}>
+                  ⚠️ {phoneError}
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 3 }}>
+                  Pharmacist will call this number to verify medications and confirm delivery.
+                </div>
+              )}
             </div>
           </div>
 
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label" htmlFor="presc-name">
-                Patient / Customer Full Name <span style={{ color: 'var(--red-500)' }}>*</span>
+                Patient / Customer Full Name <span style={{ color: 'var(--red-600)' }}>*</span>
               </label>
               <input
                 id="presc-name"
@@ -405,9 +459,18 @@ export default function PrescriptionUploader({ compact = false, onSuccess }: Pre
                 className="form-input"
                 placeholder="e.g. Aarav Sharma"
                 value={userName}
-                onChange={e => setUserName(e.target.value)}
+                onChange={e => {
+                  setUserName(e.target.value);
+                  if (nameError) setNameError('');
+                }}
+                style={nameError ? { borderColor: 'var(--red-500)', background: 'var(--red-50)' } : {}}
                 required
               />
+              {nameError && (
+                <div style={{ color: 'var(--red-600)', fontSize: '0.8rem', marginTop: 4, fontWeight: 600 }}>
+                  ⚠️ {nameError}
+                </div>
+              )}
             </div>
 
             <div className="form-group">

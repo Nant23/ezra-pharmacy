@@ -55,17 +55,24 @@ export default function Footer() {
           <div>
             <h4 className="footer-heading">Contact</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
+              <a
+                href="https://www.google.com/maps?q=27.7469722,85.3561389"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View Ezra Pharmacy in Golphutar on Google Maps"
+                className="footer-link"
+                style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.875rem', textDecoration: 'none' }}
+              >
                 <MapPin size={15} style={{ flexShrink: 0, marginTop: 2, color: 'var(--blue-500)' }} />
-                Lazimpat, Kathmandu<br />Nepal, 44600
-              </div>
+                Golphutar, Budhanilkantha-08<br />Budhanilkantha Municipality, Kathmandu 44622, Nepal
+              </a>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
                 <Phone size={15} style={{ color: 'var(--blue-500)' }} />
-                <a href="tel:+97714567890" className="footer-link">01-4567890</a>
+                <a href="tel:+9779843116918" className="footer-link">9843116918</a>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
                 <Mail size={15} style={{ color: 'var(--blue-500)' }} />
-                <a href="mailto:info@ezrapharmacy.com" className="footer-link">info@ezrapharmacy.com</a>
+                <a href="mailto:ezrameds@gmail.com" className="footer-link">ezrameds@gmail.com</a>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.875rem', color: 'var(--gray-400)' }}>
                 <Clock size={15} style={{ flexShrink: 0, marginTop: 2, color: 'var(--blue-500)' }} />

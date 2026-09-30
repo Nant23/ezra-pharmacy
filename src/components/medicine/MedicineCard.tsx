@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Star, ShoppingCart, Eye, Heart } from 'lucide-react';
 import type { Medicine } from '../../types';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { useToast } from '../../context/ToastContext';
 
 interface MedicineCardProps {
@@ -11,24 +12,53 @@ interface MedicineCardProps {
 
 export default function MedicineCard({ medicine }: MedicineCardProps) {
   const { addToCart } = useCart();
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const { showToast } = useToast();
-  const [wishlisted, setWishlisted] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [quantityInput, setQuantityInput] = useState('1');
   const navigate = useNavigate();
+  const maxQuantity = Math.max(1, medicine.stock);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (medicine.availability === 'out-of-stock') {
       showToast('This medicine is currently out of stock.', 'error');
       return;
     }
-    addToCart(medicine);
-    showToast(`${medicine.name} added to cart!`, 'success');
+    addToCart(medicine, quantity);
+    showToast(`${medicine.name} × ${quantity} added to cart!`, 'success');
   };
 
-  const handleWishlist = (e: React.MouseEvent) => {
+  const handleQuantityInput = (value: string) => {
+    setQuantityInput(value);
+    const parsedQuantity = Number(value);
+    if (value && Number.isInteger(parsedQuantity) && parsedQuantity > 0) {
+      const nextQuantity = Math.min(parsedQuantity, maxQuantity);
+      setQuantity(nextQuantity);
+      setQuantityInput(String(nextQuantity));
+    }
+  };
+
+  const commitQuantityInput = () => {
+    const parsedQuantity = Number(quantityInput);
+    const nextQuantity = Number.isInteger(parsedQuantity) && parsedQuantity > 0
+      ? Math.min(parsedQuantity, maxQuantity)
+      : quantity;
+    setQuantity(nextQuantity);
+    setQuantityInput(String(nextQuantity));
+  };
+
+  const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
-    setWishlisted(!wishlisted);
-    showToast(wishlisted ? 'Removed from wishlist' : 'Added to wishlist!', 'info');
+    e.stopPropagation();
+    const wasWishlisted = isWishlisted(medicine.id);
+    const result = await toggleWishlist(medicine);
+    const action = wasWishlisted ? 'Removed from wishlist' : 'Added to wishlist!';
+    showToast(
+      result === 'synced' ? action : result === 'local' ? `${action} Saved on this device; cloud sync is unavailable.` : 'Could not update wishlist. Please try again.',
+      result === 'failed' ? 'error' : 'success'
+    );
   };
 
   const availabilityClass = medicine.availability.replace('-', '-');
@@ -50,8 +80,8 @@ export default function MedicineCard({ medicine }: MedicineCardProps) {
               <span className="badge badge-amber">Limited</span>
             )}
           </div>
-          <button className={`medicine-wishlist ${wishlisted ? 'active' : ''}`} onClick={handleWishlist} aria-label="Wishlist">
-            <Heart size={14} fill={wishlisted ? 'currentColor' : 'none'} />
+          <button className={`medicine-wishlist ${isWishlisted(medicine.id) ? 'active' : ''}`} onClick={handleWishlist} aria-label={isWishlisted(medicine.id) ? 'Remove from wishlist' : 'Add to wishlist'}>
+            <Heart size={14} fill={isWishlisted(medicine.id) ? 'currentColor' : 'none'} />
           </button>
         </div>
 
@@ -78,6 +108,28 @@ export default function MedicineCard({ medicine }: MedicineCardProps) {
             {medicine.originalPrice && (
               <span className="medicine-original-price">Rs. {medicine.originalPrice}</span>
             )}
+          </div>
+
+          <div className="medicine-card-quantity">
+            <label htmlFor={`medicine-quantity-${medicine.id}`}>Qty</label>
+            <input
+              id={`medicine-quantity-${medicine.id}`}
+              type="number"
+              min={1}
+              max={maxQuantity}
+              step={1}
+              inputMode="numeric"
+              aria-label={`Quantity to add for ${medicine.name}`}
+              value={quantityInput}
+              onChange={e => handleQuantityInput(e.target.value)}
+              onBlur={commitQuantityInput}
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.focus();
+              }}
+              disabled={medicine.availability === 'out-of-stock'}
+            />
           </div>
 
           <div className="medicine-card-actions">

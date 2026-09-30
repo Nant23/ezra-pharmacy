@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Trash2, RefreshCw, Camera, ImagePlus, X } from 'lucide-react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import { getMedicines, addMedicine, deleteMedicine } from '../../services/api';
 import type { Medicine } from '../../types';
@@ -21,6 +21,10 @@ export default function AdminMedicines() {
   const [deleteTarget, setDeleteTarget] = useState<Medicine | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // New Medicine Form State
   const [newMed, setNewMed] = useState({
@@ -47,6 +51,30 @@ export default function AdminMedicines() {
   useEffect(() => {
     fetchMeds();
   }, []);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(imageFile);
+    setImagePreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [imageFile]);
+
+  const handleImageSelection = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Choose an image file.', 'error');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Choose an image smaller than 15 MB.', 'error');
+      return;
+    }
+    setImageFile(file);
+  };
 
   const filtered = meds.filter(m =>
     m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -87,12 +115,14 @@ export default function AdminMedicines() {
       uses: [],
       sideEffects: [],
       tags: [newMed.category.toLowerCase(), newMed.brand.toLowerCase()]
-    });
+    }, imageFile || undefined);
     setIsSubmitting(false);
 
     if (res.success) {
       showToast(`${newMed.name} added to catalog!`, 'success');
       setShowAddModal(false);
+      setImageFile(null);
+      setImagePreview(null);
       setNewMed({
         name: '',
         brand: '',
@@ -301,14 +331,60 @@ export default function AdminMedicines() {
             </div>
 
             <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label">Image URL</label>
+              <label className="form-label">Medicine Image</label>
               <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                aria-label="Take a medicine photo"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  handleImageSelection(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                aria-label="Choose a medicine image"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  handleImageSelection(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => cameraInputRef.current?.click()}>
+                  <Camera size={15} /> Take Photo
+                </button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => imageInputRef.current?.click()}>
+                  <ImagePlus size={15} /> Choose Image
+                </button>
+              </div>
+              {imagePreview && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                  <img src={imagePreview} alt="Selected medicine" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
+                  <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{imageFile?.name}</span>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setImageFile(null)} aria-label="Remove selected image">
+                    <X size={15} />
+                  </button>
+                </div>
+              )}
+              <label className="form-label" htmlFor="medicine-image-url" style={{ marginTop: '14px' }}>Or use an image URL</label>
+              <input
+                id="medicine-image-url"
                 type="url"
                 className="form-input"
-                placeholder="https://images.unsplash.com/..."
+                placeholder="https://example.com/medicine.jpg"
                 value={newMed.image}
-                onChange={e => setNewMed({ ...newMed, image: e.target.value })}
+                onChange={e => {
+                  setImageFile(null);
+                  setNewMed({ ...newMed, image: e.target.value });
+                }}
               />
+              {imageFile && <span style={{ display: 'block', marginTop: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>The selected image will be used instead of the URL.</span>}
             </div>
 
             <div className="form-group" style={{ marginBottom: '16px' }}>

@@ -4,6 +4,7 @@ import { ShoppingCart, Star, Minus, Plus, ArrowLeft, AlertTriangle, CheckCircle,
 import { getMedicineById, getMedicines } from '../services/api';
 import type { Medicine } from '../types';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import MedicineCard from '../components/medicine/MedicineCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -12,9 +13,10 @@ export default function MedicineDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const { showToast } = useToast();
   const [qty, setQty] = useState(1);
-  const [wishlisted, setWishlisted] = useState(false);
+  const [qtyInput, setQtyInput] = useState('1');
   const [activeTab, setActiveTab] = useState<'description' | 'uses' | 'dosage'>('description');
   const [medicine, setMedicine] = useState<Medicine | null>(null);
   const [related, setRelated] = useState<Medicine[]>([]);
@@ -56,6 +58,26 @@ export default function MedicineDetails() {
     );
   }
 
+  const maxQty = Math.max(1, medicine.stock);
+  const setQuantity = (value: number) => {
+    const nextQty = Math.min(maxQty, Math.max(1, Math.floor(value)));
+    setQty(nextQty);
+    setQtyInput(String(nextQty));
+  };
+
+  const handleQuantityInput = (value: string) => {
+    setQtyInput(value);
+    const parsedQty = Number(value);
+    if (value && Number.isInteger(parsedQty) && parsedQty > 0) {
+      setQty(Math.min(parsedQty, maxQty));
+    }
+  };
+
+  const commitQuantityInput = () => {
+    const parsedQty = Number(qtyInput);
+    setQuantity(Number.isInteger(parsedQty) && parsedQty > 0 ? parsedQty : qty);
+  };
+
   const handleAddToCart = () => {
     if (medicine.availability === 'out-of-stock') { showToast('This medicine is out of stock.', 'error'); return; }
     addToCart(medicine, qty);
@@ -65,6 +87,16 @@ export default function MedicineDetails() {
   const handleBuyNow = () => {
     addToCart(medicine, qty);
     navigate('/cart');
+  };
+
+  const handleWishlist = async () => {
+    const wasWishlisted = isWishlisted(medicine.id);
+    const result = await toggleWishlist(medicine);
+    const action = wasWishlisted ? 'Removed from wishlist' : 'Added to wishlist!';
+    showToast(
+      result === 'synced' ? action : result === 'local' ? `${action} Saved on this device; cloud sync is unavailable.` : 'Could not update wishlist. Please try again.',
+      result === 'failed' ? 'error' : 'success'
+    );
   };
 
   const tabs = [
@@ -173,11 +205,24 @@ export default function MedicineDetails() {
               <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '10px' }}>Quantity</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div className="quantity-control" style={{ border: '2px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-                  <button className="qty-btn" onClick={() => setQty(q => Math.max(1, q - 1))} aria-label="Decrease">
+                  <button className="qty-btn" onClick={() => setQuantity(qty - 1)} aria-label="Decrease quantity" disabled={qty <= 1}>
                     <Minus size={16} />
                   </button>
-                  <span className="qty-value" style={{ width: 52, fontSize: '1rem' }}>{qty}</span>
-                  <button className="qty-btn" onClick={() => setQty(q => Math.min(medicine.stock, q + 1))} aria-label="Increase">
+                  <input
+                    className="qty-value"
+                    style={{ width: 52, fontSize: '1rem' }}
+                    type="number"
+                    min={1}
+                    max={maxQty}
+                    step={1}
+                    inputMode="numeric"
+                    aria-label="Medicine quantity"
+                    value={qtyInput}
+                    onChange={e => handleQuantityInput(e.target.value)}
+                    onBlur={commitQuantityInput}
+                    disabled={medicine.availability === 'out-of-stock'}
+                  />
+                  <button className="qty-btn" onClick={() => setQuantity(qty + 1)} aria-label="Increase quantity" disabled={qty >= maxQty}>
                     <Plus size={16} />
                   </button>
                 </div>
@@ -206,11 +251,11 @@ export default function MedicineDetails() {
                 Buy Now
               </button>
               <button
-                onClick={() => { setWishlisted(!wishlisted); showToast(wishlisted ? 'Removed from wishlist' : 'Added to wishlist!', 'info'); }}
-                style={{ width: 48, height: 48, borderRadius: 'var(--radius-lg)', border: '2px solid var(--border)', background: wishlisted ? 'var(--red-50)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: wishlisted ? 'var(--red-500)' : 'var(--gray-400)', transition: 'var(--transition)' }}
-                aria-label="Add to wishlist"
+                onClick={handleWishlist}
+                style={{ width: 48, height: 48, borderRadius: 'var(--radius-lg)', border: '2px solid var(--border)', background: isWishlisted(medicine.id) ? 'var(--red-50)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: isWishlisted(medicine.id) ? 'var(--red-500)' : 'var(--gray-400)', transition: 'var(--transition)' }}
+                aria-label={isWishlisted(medicine.id) ? 'Remove from wishlist' : 'Add to wishlist'}
               >
-                <Heart size={18} fill={wishlisted ? 'currentColor' : 'none'} />
+                <Heart size={18} fill={isWishlisted(medicine.id) ? 'currentColor' : 'none'} />
               </button>
               <button
                 onClick={() => { navigator.clipboard?.writeText(window.location.href); showToast('Link copied!', 'info'); }}

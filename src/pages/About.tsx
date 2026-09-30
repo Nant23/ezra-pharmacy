@@ -3,17 +3,14 @@ import { Award, Target, Eye, Heart, ShieldCheck, Users } from 'lucide-react';
 import ezraLogo from '../assets/ezra-logo.png';
 
 const team = [
-  { name: 'Dr. Sunita Karki', role: 'Chief Pharmacist', emoji: '👩‍⚕️', exp: '12 years experience', deg: 'PharmD, TU' },
-  { name: 'Dr. Rohan Thapa', role: 'Clinical Pharmacist', emoji: '👨‍⚕️', exp: '8 years experience', deg: 'B.Pharm, PAHS' },
-  { name: 'Anjali Shrestha', role: 'Pharmacy Manager', emoji: '👩‍💼', exp: '10 years experience', deg: 'MBA, Healthcare Management' },
-  { name: 'Bikash Rai', role: 'Inventory Specialist', emoji: '👨‍💼', exp: '6 years experience', deg: 'B.Pharm, KU' },
+  { name: 'Muna Gurung', role: 'Pharmacist', emoji: '👩‍⚕️', exp: '10 years of experience', deg: 'Sole pharmacist at Ezra Pharmacy' },
 ];
 
 const certifications = [
   { icon: '🏛️', title: 'DDA Registered', desc: 'Registered with the Department of Drug Administration, Government of Nepal' },
   { icon: '✅', title: 'Genuine Medicines', desc: 'All medicines sourced directly from licensed manufacturers and distributors' },
   { icon: '🔒', title: 'Data Protection', desc: 'Your personal and health data protected with enterprise-grade encryption' },
-  { icon: '📋', title: 'Licensed Pharmacists', desc: 'All prescriptions reviewed by Nepal Pharmacy Council registered pharmacists' },
+  { icon: '📋', title: 'Pharmacist Support', desc: 'Pharmacy operations and prescription support are handled by Muna Gurung' },
 ];
 
 const values = [
@@ -141,14 +138,14 @@ export default function About() {
         <div className="container">
           <div className="section-header">
             <div className="section-label">Our Experts</div>
-            <h2 className="heading-lg">Meet Our Pharmacist Team</h2>
+            <h2 className="heading-lg">Meet Our Pharmacist</h2>
             <p style={{ color: 'var(--text-secondary)', marginTop: '12px' }}>
-              All our pharmacists are registered with the Nepal Pharmacy Council
+              Muna Gurung is the only pharmacist handling the pharmacy, bringing 10 years of experience to her work.
             </p>
           </div>
-          <div className="grid-4">
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             {team.map((member, i) => (
-              <div key={i} className="team-card">
+              <div key={i} className="team-card" style={{ width: '100%', maxWidth: 360 }}>
                 <div className="team-avatar">{member.emoji}</div>
                 <h3 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>{member.name}</h3>
                 <div style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px' }}>{member.role}</div>
@@ -188,7 +185,7 @@ export default function About() {
             Have Questions? We're Here to Help.
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.85)', marginBottom: '32px', fontSize: '1.05rem' }}>
-            Our team of licensed pharmacists is available to answer your health queries.
+            Our pharmacist, Muna Gurung, is available to answer your health queries.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/contact" style={{ padding: '14px 28px', background: 'white', color: 'var(--primary)', borderRadius: 'var(--radius-xl)', fontWeight: 700, display: 'inline-block' }}>

@@ -6,14 +6,17 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { getAllOrders, getUserOrders } from '../../services/api';
+import { getUnreadAdminOrderCount, getUnreadOrderUpdateCount, ORDER_NOTIFICATIONS_READ_EVENT } from '../../services/orderNotifications';
 import ezraLogo from '../../assets/ezra-logo.png';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { totalItems } = useCart();
+  const { totalItems, unreadCartItems } = useCart();
   const { user, logout, isAuthenticated, isAdmin } = useAuth();
+  const [unreadOrderUpdates, setUnreadOrderUpdates] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -27,6 +30,36 @@ export default function Navbar() {
     setMobileOpen(false);
     setUserMenuOpen(false);
   }, [location]);
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadOrderUpdates(0);
+      return;
+    }
+
+    let isActive = true;
+    const refreshOrderNotifications = async () => {
+      const orders = isAdmin ? await getAllOrders() : await getUserOrders(user.id);
+      if (!isActive) return;
+      setUnreadOrderUpdates(isAdmin
+        ? getUnreadAdminOrderCount(user.id, orders)
+        : getUnreadOrderUpdateCount(user.id, orders));
+    };
+
+    void refreshOrderNotifications();
+    const intervalId = window.setInterval(() => void refreshOrderNotifications(), 30000);
+    window.addEventListener('focus', refreshOrderNotifications);
+    window.addEventListener(ORDER_NOTIFICATIONS_READ_EVENT, refreshOrderNotifications);
+    window.addEventListener('storage', refreshOrderNotifications);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshOrderNotifications);
+      window.removeEventListener(ORDER_NOTIFICATIONS_READ_EVENT, refreshOrderNotifications);
+      window.removeEventListener('storage', refreshOrderNotifications);
+    };
+  }, [user?.id, isAdmin]);
 
   const navLinks = [
     { to: '/', label: 'Home' },
@@ -67,20 +100,20 @@ export default function Navbar() {
 
           {/* Actions */}
           <div className="navbar-actions">
-            <a href="tel:+97714567890" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
-              <Phone size={14} />
-              <span style={{ display: 'none' }} className="phone-label">01-4567890</span>
+            <a href="tel:+9779843116918" className="call-btn" aria-label="Call Ezra Pharmacy at 9843116918">
+              <Phone size={18} />
             </a>
 
-            <Link to="/cart" className="cart-btn">
+            <Link to="/cart" className="cart-btn" aria-label={`Shopping cart, ${totalItems} items${unreadCartItems ? `, ${unreadCartItems} new since your last visit` : ''}`}>
               <ShoppingCart size={18} />
-              {totalItems > 0 && <span className="cart-count">{totalItems}</span>}
+              {unreadCartItems > 0 && <span className="cart-count">{unreadCartItems}</span>}
             </Link>
 
             {isAuthenticated ? (
               <div style={{ position: 'relative' }}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  aria-label={`${user?.name.split(' ')[0]} account${unreadOrderUpdates ? `, ${unreadOrderUpdates} unread order notifications` : ''}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '0.4rem 0.8rem',
@@ -92,6 +125,11 @@ export default function Navbar() {
                 >
                   <User size={16} />
                   {user?.name.split(' ')[0]}
+                  {unreadOrderUpdates > 0 && (
+                    <span style={{ minWidth: 18, height: 18, padding: '0 5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-full)', background: 'var(--red-600)', color: 'white', fontSize: '0.7rem', fontWeight: 700 }}>
+                      {unreadOrderUpdates}
+                    </span>
+                  )}
                   <ChevronDown size={14} />
                 </button>
                 {userMenuOpen && (
@@ -116,6 +154,7 @@ export default function Navbar() {
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <LayoutDashboard size={15} /> My Account
+                      {unreadOrderUpdates > 0 && <span className="badge badge-red" style={{ marginLeft: 'auto' }}>{unreadOrderUpdates}</span>}
                     </Link>
                     <Link to="/wishlist" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', fontSize: '0.875rem', color: 'var(--gray-700)', transition: 'background 0.2s' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
@@ -131,8 +170,8 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <Link to="/login" className="btn btn-primary btn-sm">
-                <User size={14} /> Login
+              <Link to="/login" className="btn btn-primary btn-lg">
+                <User size={18} /> Login
               </Link>
             )}
 
@@ -159,7 +198,7 @@ export default function Navbar() {
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0' }} />
           {isAuthenticated ? (
             <>
-              <Link to="/dashboard" className="mobile-nav-link"><LayoutDashboard size={18} /> My Account</Link>
+              <Link to="/dashboard" className="mobile-nav-link"><LayoutDashboard size={18} /> My Account{unreadOrderUpdates > 0 && <span className="badge badge-red" style={{ marginLeft: 'auto' }}>{unreadOrderUpdates}</span>}</Link>
               {isAdmin && <Link to="/admin" className="mobile-nav-link"><Shield size={18} /> Admin Panel</Link>}
               <button onClick={handleLogout} className="mobile-nav-link" style={{ background: 'none', border: 'none', color: 'var(--red-600)', width: '100%', textAlign: 'left', cursor: 'pointer' }}>
                 <LogOut size={18} /> Sign Out

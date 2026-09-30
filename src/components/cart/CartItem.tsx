@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { CartItem as CartItemType } from '../../types';
 import { useCart } from '../../context/CartContext';
@@ -9,6 +10,21 @@ interface CartItemProps {
 export default function CartItem({ item }: CartItemProps) {
   const { updateQuantity, removeFromCart } = useCart();
   const { medicine, quantity } = item;
+  const [quantityInput, setQuantityInput] = useState(String(quantity));
+  const maxQuantity = Math.max(1, medicine.stock);
+
+  useEffect(() => {
+    setQuantityInput(String(quantity));
+  }, [quantity]);
+
+  const commitQuantityInput = () => {
+    const parsedQuantity = Number(quantityInput);
+    const nextQuantity = Number.isInteger(parsedQuantity) && parsedQuantity > 0
+      ? Math.min(parsedQuantity, maxQuantity)
+      : quantity;
+    setQuantityInput(String(nextQuantity));
+    updateQuantity(medicine.id, nextQuantity);
+  };
 
   return (
     <div className="cart-item">
@@ -32,7 +48,18 @@ export default function CartItem({ item }: CartItemProps) {
               onClick={() => updateQuantity(medicine.id, quantity - 1)}
               aria-label="Decrease quantity"
             >−</button>
-            <span className="qty-value">{quantity}</span>
+            <input
+              className="qty-value"
+              type="number"
+              min={1}
+              max={maxQuantity}
+              step={1}
+              inputMode="numeric"
+              aria-label={`Quantity for ${medicine.name}`}
+              value={quantityInput}
+              onChange={e => setQuantityInput(e.target.value)}
+              onBlur={commitQuantityInput}
+            />
             <button
               className="qty-btn"
               onClick={() => updateQuantity(medicine.id, Math.min(quantity + 1, medicine.stock))}

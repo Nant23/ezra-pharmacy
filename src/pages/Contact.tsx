@@ -1,22 +1,24 @@
 import { useState } from 'react';
 import { MapPin, Phone, Mail, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { submitContactMessage } from '../services/api';
 
 const contactInfo = [
   {
     icon: <MapPin size={20} />,
     title: 'Visit Us',
-    lines: ['Lazimpat, Ward No. 2', 'Kathmandu, Nepal 44600'],
+    lines: ['Golphutar, Budhanilkantha-08', 'Budhanilkantha Municipality, Kathmandu 44622, Nepal'],
   },
   {
     icon: <Phone size={20} />,
     title: 'Call Us',
-    lines: ['01-4567890 (General)', '9841234567 (WhatsApp)', '9851234567 (Emergency)'],
+    lines: ['9843116918'],
   },
   {
     icon: <Mail size={20} />,
     title: 'Email Us',
-    lines: ['info@ezrapharmacy.com', 'prescriptions@ezrapharmacy.com'],
+    lines: ['ezrameds@gmail.com'],
   },
   {
     icon: <Clock size={20} />,
@@ -38,8 +40,13 @@ export default function Contact() {
 
   const validate = () => {
     const e: typeof errors = {};
+    if (!isSupabaseConfigured) {
+      showToast('Contact messages are temporarily unavailable. Please try again later.', 'error');
+      return false;
+    }
     if (form.name.trim().length < 2) e.name = 'Please enter your name';
     if (!form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) e.email = 'Enter a valid email';
+    if (!/^[+()\d\s-]{7,40}$/.test(form.phone.trim())) e.phone = 'Enter a valid contact phone number';
     if (!form.subject.trim()) e.subject = 'Please enter a subject';
     if (form.message.trim().length < 20) e.message = 'Message must be at least 20 characters';
     setErrors(e);
@@ -50,10 +57,24 @@ export default function Contact() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setLoading(false);
-    setForm({ name: '', email: '', phone: '', subject: '', message: '' });
-    showToast('Message sent! We\'ll get back to you within 24 hours.', 'success');
+    try {
+      const result = await submitContactMessage({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        subject: form.subject,
+        message: form.message
+      });
+      if (!result.success) throw new Error(result.error || 'Could not save your message. Please try again.');
+
+      setForm({ name: '', email: '', phone: '', subject: '', message: '' });
+      showToast('Message sent to Ezra Pharmacy. We\'ll get back to you within 24 hours.', 'success');
+    } catch (error) {
+      console.error('Contact message save failed:', error);
+      showToast(error instanceof Error ? error.message : 'Could not save your message. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,7 +100,7 @@ export default function Contact() {
             </div>
             <div style={{ color: 'var(--red-700)', fontSize: '0.9rem', lineHeight: 1.6 }}>
               For life-threatening emergencies, call <strong>102 (Ambulance)</strong> or <strong>100 (Police)</strong> immediately.
-              For urgent medicine delivery, call our emergency line: <strong>9851234567</strong> (24/7).
+              For urgent medicine delivery, call our emergency line: <strong>9843116918</strong> (24/7).
             </div>
           </div>
         </div>
@@ -91,26 +112,45 @@ export default function Contact() {
               Contact Information
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
-              {contactInfo.map((info, i) => (
-                <div key={i} className="contact-info-card">
-                  <div className="contact-info-icon">{info.icon}</div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--gray-900)', marginBottom: '4px' }}>{info.title}</div>
-                    {info.lines.map((line, j) => (
-                      <div key={j} style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{line}</div>
-                    ))}
+              {contactInfo.map((info, i) => {
+                const cardContent = (
+                  <>
+                    <div className="contact-info-icon">{info.icon}</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--gray-900)', marginBottom: '4px' }}>{info.title}</div>
+                      {info.lines.map((line, j) => (
+                        <div key={j} style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{line}</div>
+                      ))}
+                    </div>
+                  </>
+                );
+
+                return info.title === 'Visit Us' ? (
+                  <a
+                    key={i}
+                    href="https://www.google.com/maps?q=27.7469722,85.3561389"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="contact-info-card"
+                    style={{ color: 'inherit', textDecoration: 'none' }}
+                  >
+                    {cardContent}
+                  </a>
+                ) : (
+                  <div key={i} className="contact-info-card">
+                    {cardContent}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Map Placeholder */}
             <div className="map-placeholder">
               <div style={{ fontSize: '2.5rem' }}>🗺️</div>
               <div style={{ fontWeight: 600, color: 'var(--gray-600)' }}>Ezra Pharmacy Location</div>
-              <div>Lazimpat, Kathmandu</div>
+              <div>Golphutar, Budhanilkantha-08, Kathmandu</div>
               <a
-                href="https://maps.google.com"
+                href="https://www.google.com/maps?q=27.7469722,85.3561389"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-ghost btn-sm"
@@ -137,8 +177,9 @@ export default function Contact() {
                   {errors.name && <span className="form-error">{errors.name}</span>}
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="contact-phone">Phone (Optional)</label>
-                  <input id="contact-phone" className="form-input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="98XXXXXXXX" />
+                  <label className="form-label" htmlFor="contact-phone">Phone Number *</label>
+                  <input id="contact-phone" type="tel" className={`form-input ${errors.phone ? 'error' : ''}`} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="98XXXXXXXX" required />
+                  {errors.phone && <span className="form-error">{errors.phone}</span>}
                 </div>
               </div>
 

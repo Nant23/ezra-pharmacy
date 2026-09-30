@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
+import Modal from '../../components/ui/Modal';
 import { getAllOrders, updateOrderStatus } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import { markAdminOrdersRead } from '../../services/orderNotifications';
 import type { Order } from '../../types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
@@ -11,17 +14,32 @@ type StatusFilter = typeof statusOptions[number];
 
 export default function AdminOrders() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const userId = user?.id;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getAllOrders().then(data => {
+    let isActive = true;
+    const refreshOrders = async () => {
+      const data = await getAllOrders();
+      if (!isActive) return;
       setOrders(data);
       setLoading(false);
-    });
-  }, []);
+      if (userId) markAdminOrdersRead(userId, data);
+    };
+
+    void refreshOrders();
+    const intervalId = window.setInterval(() => void refreshOrders(), 30000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [userId]);
 
   const filtered = orders.filter(o => {
     const matchStatus = statusFilter === 'all' || o.status === statusFilter;
@@ -93,7 +111,15 @@ export default function AdminOrders() {
                 <tbody>
                   {filtered.map(order => (
                     <tr key={order.id}>
-                      <td style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--primary)' }}>{order.id}</td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrder(order)}
+                          style={{ background: 'none', border: 0, padding: 0, color: 'var(--primary)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          {order.id}
+                        </button>
+                      </td>
                       <td>
                         <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
                           {(order.address as { name?: string; label?: string })?.name || (order.address as { name?: string; label?: string })?.label || 'Customer'}
@@ -103,7 +129,22 @@ export default function AdminOrders() {
                           {(order.address as { phone?: string })?.phone ? ` • ${(order.address as { phone?: string }).phone}` : ''}
                         </div>
                       </td>
-                      <td style={{ fontWeight: 600 }}>{order.items?.reduce((s, i) => s + (i.quantity || 1), 0) || 0} items</td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>
+                          {order.items?.reduce((total, item) => total + (item.quantity || 1), 0) || 0} items
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {order.items?.map((item, itemIndex) => {
+                            const itemWithLegacyName = item as typeof item & { id?: string; name?: string };
+                            const medicine = item.medicine;
+                            return (
+                              <div key={medicine?.id || itemWithLegacyName.id || `${order.id}-${itemIndex}`}>
+                                {medicine?.name || itemWithLegacyName.name || 'Medicine details unavailable'} × {item.quantity || 1}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </td>
                       <td style={{ fontWeight: 700, color: 'var(--primary)' }}>Rs. {order.total}</td>
                       <td>
                         <div>
@@ -145,6 +186,45 @@ export default function AdminOrders() {
             </div>
           )}
         </div>
+        <Modal
+          open={!!selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          title={selectedOrder ? `Order ${selectedOrder.id}` : undefined}
+        >
+          {selectedOrder && (
+            <div>
+              <h4 style={{ margin: '0 0 12px', fontWeight: 700, color: 'var(--gray-900)' }}>Ordered Items</h4>
+              <div style={{ borderTop: '1px solid var(--border)' }}>
+                {selectedOrder.items?.map((item, itemIndex) => {
+                  const itemWithLegacyName = item as typeof item & { id?: string; name?: string };
+                  const medicine = item.medicine;
+                  const quantity = item.quantity || 1;
+                  return (
+                    <div
+                      key={medicine?.id || itemWithLegacyName.id || `${selectedOrder.id}-${itemIndex}`}
+                      style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '12px 0', borderBottom: '1px solid var(--border)' }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
+                          {medicine?.name || itemWithLegacyName.name || 'Medicine details unavailable'}
+                        </div>
+                        {medicine?.brand && <div style={{ marginTop: 3, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{medicine.brand}</div>}
+                      </div>
+                      <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div>Qty: {quantity}</div>
+                        {medicine?.price != null && <div style={{ marginTop: 3, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Rs. {(medicine.price * quantity).toFixed(2)}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginTop: 16, fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Payment: {selectedOrder.paymentMethod.toUpperCase()}</span>
+                <strong style={{ color: 'var(--primary)' }}>Total: Rs. {selectedOrder.total}</strong>
+              </div>
+            </div>
+          )}
+        </Modal>
       </main>
     </div>
   );

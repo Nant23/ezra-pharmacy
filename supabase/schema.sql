@@ -30,7 +30,7 @@ begin
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
     new.email,
     new.raw_user_meta_data->>'phone',
-    coalesce(new.raw_user_meta_data->>'role', 'user')
+    'user'
   );
   return new;
 end;
@@ -78,6 +78,16 @@ create table if not exists public.medicines (
   tags text[] default '{}',
   created_at timestamptz default now(),
   updated_at timestamptz default now()
+);
+
+-- ------------------------------------------------------------
+-- 3A. CUSTOMER WISHLISTS
+-- ------------------------------------------------------------
+create table if not exists public.wishlists (
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  medicine_id text references public.medicines(id) on delete cascade not null,
+  created_at timestamptz default now(),
+  primary key (user_id, medicine_id)
 );
 
 -- ------------------------------------------------------------
@@ -132,15 +142,31 @@ create table if not exists public.articles (
   created_at timestamptz default now()
 );
 
+-- ------------------------------------------------------------
+-- 7. CUSTOMER CONTACT MESSAGES
+-- ------------------------------------------------------------
+create table if not exists public.contact_messages (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null check (char_length(name) between 2 and 100),
+  email text not null check (char_length(email) <= 254),
+  phone text not null check (char_length(phone) between 7 and 40),
+  subject text not null check (char_length(subject) between 1 and 120),
+  message text not null check (char_length(message) between 20 and 5000),
+  status text not null default 'new' check (status in ('new', 'read', 'resolved')),
+  created_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================================
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
 alter table public.medicines enable row level security;
+alter table public.wishlists enable row level security;
 alter table public.orders enable row level security;
 alter table public.prescriptions enable row level security;
 alter table public.articles enable row level security;
+alter table public.contact_messages enable row level security;
 
 -- Helper to check if current authenticated user is an admin
 create or replace function public.is_admin()
@@ -178,6 +204,19 @@ drop policy if exists "Admins can manage medicines" on public.medicines;
 create policy "Admins can manage medicines" on public.medicines
   for all using (public.is_admin());
 
+-- WISHLISTS (Users manage their own, admins can view all)
+drop policy if exists "Users can view own wishlist" on public.wishlists;
+create policy "Users can view own wishlist" on public.wishlists
+  for select using (auth.uid() = user_id or public.is_admin());
+
+drop policy if exists "Users can add to own wishlist" on public.wishlists;
+create policy "Users can add to own wishlist" on public.wishlists
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can remove from own wishlist" on public.wishlists;
+create policy "Users can remove from own wishlist" on public.wishlists
+  for delete using (auth.uid() = user_id or public.is_admin());
+
 -- ARTICLES (Public Read, Admin Write)
 drop policy if exists "Anyone can read articles" on public.articles;
 create policy "Anyone can read articles" on public.articles
@@ -186,6 +225,19 @@ create policy "Anyone can read articles" on public.articles
 drop policy if exists "Admins can manage articles" on public.articles;
 create policy "Admins can manage articles" on public.articles
   for all using (public.is_admin());
+
+-- CONTACT MESSAGES (Public can submit; admins can review and update)
+drop policy if exists "Anyone can submit contact messages" on public.contact_messages;
+create policy "Anyone can submit contact messages" on public.contact_messages
+  for insert with check (true);
+
+drop policy if exists "Admins can view contact messages" on public.contact_messages;
+create policy "Admins can view contact messages" on public.contact_messages
+  for select using (public.is_admin());
+
+drop policy if exists "Admins can update contact messages" on public.contact_messages;
+create policy "Admins can update contact messages" on public.contact_messages
+  for update using (public.is_admin()) with check (public.is_admin());
 
 -- ORDERS (User owns order or Admin)
 drop policy if exists "Users can view own orders" on public.orders;
@@ -220,7 +272,8 @@ create policy "Admins can update prescriptions" on public.prescriptions
 insert into storage.buckets (id, name, public)
 values 
   ('prescriptions', 'prescriptions', false),
-  ('medicines', 'medicines', true)
+  ('medicines', 'medicines', true),
+  ('articles', 'articles', true)
 on conflict (id) do nothing;
 
 -- Prescriptions bucket policies:
@@ -244,3 +297,11 @@ create policy "Anyone can view medicine images" on storage.objects
 drop policy if exists "Admins can upload medicine images" on storage.objects;
 create policy "Admins can upload medicine images" on storage.objects
   for insert with check (bucket_id = 'medicines' and public.is_admin());
+
+drop policy if exists "Anyone can view article images" on storage.objects;
+create policy "Anyone can view article images" on storage.objects
+  for select using (bucket_id = 'articles');
+
+drop policy if exists "Admins can upload article images" on storage.objects;
+create policy "Admins can upload article images" on storage.objects
+  for insert with check (bucket_id = 'articles' and public.is_admin());

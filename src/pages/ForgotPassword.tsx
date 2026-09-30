@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
+import ezraLogo from '../assets/ezra-logo.png';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -21,9 +22,8 @@ export default function ForgotPassword() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <Link to="/" className="auth-logo">
-            <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, var(--green-600), var(--green-500))', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem' }}>⚕</div>
-            Ezra Pharmacy
+          <Link to="/" className="auth-logo" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <img src={ezraLogo} alt="Ezra Pharmacy" style={{ height: 48, width: 'auto', objectFit: 'contain' }} />
           </Link>
           {!sent ? (
             <>

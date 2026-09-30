@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { CartProvider } from './context/CartContext';
+import { WishlistProvider } from './context/WishlistContext';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/ui/Toast';
@@ -23,6 +24,7 @@ import HealthArticles from './pages/HealthArticles';
 import ArticleDetail from './pages/ArticleDetail';
 import PrescriptionUpload from './pages/PrescriptionUpload';
 import Categories from './pages/Categories';
+import Wishlist from './pages/Wishlist';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -30,6 +32,9 @@ import AdminMedicines from './pages/admin/AdminMedicines';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminPrescriptions from './pages/admin/AdminPrescriptions';
+import AdminWishlist from './pages/admin/AdminWishlist';
+import AdminArticles from './pages/admin/AdminArticles';
+import AdminMessages from './pages/admin/AdminMessages';
 
 // Admin pages use their own layout (with AdminSidebar), so no Footer
 const NO_FOOTER_PATHS = ['/login', '/register', '/forgot-password'];
@@ -74,6 +79,7 @@ function AppLayout() {
 
         {/* User Dashboard */}
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/wishlist" element={<Wishlist />} />
 
         {/* Admin */}
         <Route path="/admin" element={<AdminDashboard />} />
@@ -81,6 +87,9 @@ function AppLayout() {
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/admin/customers" element={<AdminCustomers />} />
         <Route path="/admin/prescriptions" element={<AdminPrescriptions />} />
+        <Route path="/admin/wishlist" element={<AdminWishlist />} />
+        <Route path="/admin/articles" element={<AdminArticles />} />
+        <Route path="/admin/messages" element={<AdminMessages />} />
 
         {/* 404 */}
         <Route path="*" element={
@@ -112,7 +121,9 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <CartProvider>
-            <AppLayout />
+            <WishlistProvider>
+              <AppLayout />
+            </WishlistProvider>
           </CartProvider>
         </AuthProvider>
       </ToastProvider>

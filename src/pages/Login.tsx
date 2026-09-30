@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import ezraLogo from '../assets/ezra-logo.png';
 
 export default function Login() {
   const { login } = useAuth();
@@ -26,17 +27,13 @@ export default function Login() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    const ok = await login(email, password);
+    const result = await login(email, password);
     setLoading(false);
-    if (ok) {
+    if (result.success) {
       showToast('Welcome back to Ezra Pharmacy!', 'success');
-      if (email.toLowerCase().includes('admin')) {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/');
     } else {
-      showToast('Invalid email or password. Please try again.', 'error');
+      showToast(result.message || 'Invalid email or password. Please try again.', 'error');
     }
   };
 
@@ -44,9 +41,8 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <Link to="/" className="auth-logo">
-            <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, var(--green-600), var(--green-500))', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem' }}>⚕</div>
-            Ezra Pharmacy
+          <Link to="/" className="auth-logo" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <img src={ezraLogo} alt="Ezra Pharmacy" style={{ height: 48, width: 'auto', objectFit: 'contain' }} />
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-900)', marginBottom: '8px' }}>Welcome Back</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Sign in to your account to continue</p>

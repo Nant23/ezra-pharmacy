@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   CheckCircle, XCircle, Eye, RefreshCw, Phone, User,
-  Stethoscope, Search, ExternalLink, Calendar, FileText
+  Stethoscope, Search, ExternalLink, Calendar, FileText, Download, Printer
 } from 'lucide-react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import type { Prescription } from '../../types';
 import { useToast } from '../../context/ToastContext';
-import { getAllPrescriptions, updatePrescriptionStatus } from '../../services/api';
+import { getAllPrescriptions, updatePrescriptionStatus, getPrescriptionBlob, isPdfFile } from '../../services/api';
 import Modal from '../../components/ui/Modal';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
@@ -15,9 +15,39 @@ export default function AdminPrescriptions() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Prescription | null>(null);
+  const [selectedBlobUrl, setSelectedBlobUrl] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
   const [zoomed, setZoomed] = useState(false);
+
+  // Manage Blob URL lifecycle for modal inspection & download
+  useEffect(() => {
+    let active = true;
+    let localUrl: string | null = null;
+
+    if (!selected) {
+      setSelectedBlobUrl(null);
+      return;
+    }
+
+    getPrescriptionBlob(selected)
+      .then(({ blob }) => {
+        if (!active) return;
+        localUrl = URL.createObjectURL(blob);
+        setSelectedBlobUrl(localUrl);
+      })
+      .catch((err) => {
+        console.warn('Could not create blob preview:', err);
+        if (active) setSelectedBlobUrl(selected.image);
+      });
+
+    return () => {
+      active = false;
+      if (localUrl) {
+        URL.revokeObjectURL(localUrl);
+      }
+    };
+  }, [selected]);
 
   const fetchPrescriptions = () => {
     setLoading(true);
@@ -54,6 +84,110 @@ export default function AdminPrescriptions() {
     } else {
       showToast(`Failed to update prescription ${id}.`, 'error');
     }
+  };
+
+  const handleDownload = async (rx: Prescription) => {
+    try {
+      showToast('Preparing download...', 'info');
+      const { blob, fileName } = await getPrescriptionBlob(rx);
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      showToast(`Downloaded ${fileName} (${(blob.size / 1024).toFixed(0)} KB)`, 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Download failed';
+      console.error('Download failed:', err);
+      showToast(msg, 'error');
+    }
+  };
+
+  const handlePrintReport = (rx: Prescription) => {
+    const isPdf = isPdfFile(rx.image);
+    if (isPdf && selectedBlobUrl) {
+      window.open(selectedBlobUrl, '_blank');
+      return;
+    }
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      showToast('Please allow popups to print/save prescription report.', 'error');
+      return;
+    }
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Prescription-${rx.id}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 28px; color: #0f172a; margin: 0; }
+            .header { border-bottom: 2px solid #059669; padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .logo { font-size: 22px; font-weight: 800; color: #059669; }
+            .sub { font-size: 13px; color: #64748b; margin-top: 4px; }
+            .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; text-transform: uppercase; }
+            .details-box { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px; font-size: 14px; }
+            .lbl { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 2px; }
+            .val { font-weight: 600; color: #0f172a; }
+            .image-wrap { text-align: center; margin-top: 10px; }
+            .image-wrap img { max-width: 100%; max-height: 700px; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            @media print {
+              body { padding: 10px; }
+              @page { margin: 1.5cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="logo">Ezra Pharmacy · Prescription Report</div>
+              <div class="sub">Order & Prescription Ref: <strong>${rx.id}</strong> · Printed: ${new Date().toLocaleString()}</div>
+            </div>
+            <div>
+              <span class="badge">${rx.status}</span>
+            </div>
+          </div>
+
+          <div class="details-box">
+            <div>
+              <div class="lbl">Patient / Customer</div>
+              <div class="val">${rx.userName || 'N/A'}</div>
+            </div>
+            <div>
+              <div class="lbl">Contact Phone Number</div>
+              <div class="val">${rx.userPhone || 'N/A'}</div>
+            </div>
+            <div>
+              <div class="lbl">Prescribing Doctor / Hospital</div>
+              <div class="val">${rx.doctorName || 'Not specified'}</div>
+            </div>
+            <div>
+              <div class="lbl">Date Submitted</div>
+              <div class="val">${new Date(rx.createdAt).toLocaleDateString()}</div>
+            </div>
+            ${rx.notes ? `<div style="grid-column: 1 / -1;"><div class="lbl">Customer Instructions</div><div class="val">${rx.notes}</div></div>` : ''}
+          </div>
+
+          <div class="image-wrap">
+            <img src="${rx.image}" alt="Doctor Prescription" />
+          </div>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWin.document.close();
   };
 
   const statusBadge = (s: Prescription['status']) => {
@@ -211,7 +345,12 @@ export default function AdminPrescriptions() {
                         onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
                         onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
                       >
-                        {rx.image && (rx.image.startsWith('data:') || rx.image.startsWith('http')) ? (
+                        {isPdfFile(rx.image) ? (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--red-50)', color: 'var(--red-600)' }}>
+                            <FileText size={18} />
+                            <span style={{ fontSize: '8px', fontWeight: 800 }}>PDF</span>
+                          </div>
+                        ) : rx.image && (rx.image.startsWith('data:') || rx.image.startsWith('http')) ? (
                           <img
                             src={rx.image}
                             alt="Doctor's prescription slip"
@@ -225,8 +364,19 @@ export default function AdminPrescriptions() {
 
                     {/* Rx ID */}
                     <td>
-                      <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '0.9rem', letterSpacing: '0.5px' }}>
-                        {rx.id}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '0.9rem', letterSpacing: '0.5px' }}>
+                          {rx.id}
+                        </span>
+                        {isPdfFile(rx.image) ? (
+                          <span style={{ fontSize: '10px', background: 'var(--red-100)', color: 'var(--red-700)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>
+                            PDF
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '10px', background: 'var(--blue-100)', color: 'var(--blue-700)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>
+                            PHOTO
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -299,10 +449,26 @@ export default function AdminPrescriptions() {
                         <button
                           className="btn btn-secondary btn-sm"
                           onClick={() => setSelected(rx)}
-                          style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 5 }}
+                          style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 5 }}
                           title="Inspect Prescription"
                         >
                           <Eye size={14} /> Review
+                        </button>
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => handleDownload(rx)}
+                          style={{
+                            background: 'var(--blue-50)',
+                            color: 'var(--blue-700)',
+                            border: '1px solid var(--blue-200)',
+                            padding: '6px 10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5
+                          }}
+                          title="Download Prescription to your device"
+                        >
+                          <Download size={14} /> Download
                         </button>
                         {rx.status !== 'verified' && (
                           <button
@@ -366,7 +532,7 @@ export default function AdminPrescriptions() {
           <Modal open={!!selected} onClose={() => { setSelected(null); setZoomed(false); }} title={`Doctor's Prescription #${selected.id}`}>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <div style={{
-                maxHeight: zoomed ? 650 : 420,
+                maxHeight: zoomed ? 650 : 450,
                 overflow: 'auto',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--border)',
@@ -374,7 +540,15 @@ export default function AdminPrescriptions() {
                 padding: 12,
                 position: 'relative'
               }}>
-                {selected.image ? (
+                {isPdfFile(selected.image) ? (
+                  <div style={{ width: '100%', height: zoomed ? 600 : 400, background: '#1e293b', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                    <iframe
+                      src={selectedBlobUrl || undefined}
+                      title="Prescription PDF Document"
+                      style={{ width: '100%', height: '100%', border: 'none', background: 'white' }}
+                    />
+                  </div>
+                ) : selected.image ? (
                   <img
                     src={selected.image}
                     alt="Doctor's Prescription Full Preview"
@@ -394,20 +568,55 @@ export default function AdminPrescriptions() {
                   <div style={{ padding: '40px', color: 'white' }}>No image file attached</div>
                 )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, padding: '0 4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, padding: '0 4px', flexWrap: 'wrap', gap: 8 }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Click image to {zoomed ? 'zoom out' : 'zoom in'}
+                  {isPdfFile(selected.image)
+                    ? '📄 Document Viewer (Scroll / Zoom pages inside)'
+                    : `Click image to ${zoomed ? 'zoom out' : 'zoom in'} for reading handwriting`}
                 </span>
-                {selected.image && (
-                  <a
-                    href={selected.image}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ fontSize: '0.8rem', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    onClick={() => handleDownload(selected)}
+                    className="btn btn-sm"
+                    style={{
+                      background: 'var(--blue-50)',
+                      color: 'var(--blue-700)',
+                      border: '1px solid var(--blue-200)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      fontSize: '0.8rem',
+                      padding: '5px 12px'
+                    }}
+                    title="Download original uncorrupted file"
                   >
-                    Open in New Window <ExternalLink size={12} />
-                  </a>
-                )}
+                    <Download size={14} /> Download Original {isPdfFile(selected.image) ? 'PDF' : 'File'}
+                  </button>
+                  <button
+                    onClick={() => handlePrintReport(selected)}
+                    className="btn btn-sm btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      fontSize: '0.8rem',
+                      padding: '5px 12px'
+                    }}
+                    title="Print or Save full PDF report"
+                  >
+                    <Printer size={14} /> Print / Save PDF
+                  </button>
+                  {selectedBlobUrl && (
+                    <a
+                      href={selectedBlobUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: '0.8rem', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                    >
+                      Open in New Window <ExternalLink size={12} />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -456,6 +665,21 @@ export default function AdminPrescriptions() {
 
             {/* Modal Actions */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => handlePrintReport(selected)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                title="Print or Save official PDF report"
+              >
+                <Printer size={15} /> Print / Save PDF
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleDownload(selected)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Download size={15} /> Download Original {isPdfFile(selected.image) ? 'PDF' : 'File'}
+              </button>
               <button className="btn btn-secondary" onClick={() => { setSelected(null); setZoomed(false); }}>
                 Close
               </button>

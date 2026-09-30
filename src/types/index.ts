@@ -89,6 +89,10 @@ export interface Prescription {
   doctorName?: string;
   notes: string;
   image: string;
+  fileData?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
   status: 'pending' | 'verified' | 'rejected';
   createdAt: string;
   medicines?: string[];
